@@ -86,28 +86,18 @@ const SettingsPanel = ({ config, onConfigChange }) => {
                 <label>
                   <input
                     type="radio"
-                    name="kickModeSelection"
-                    checked={config.kickmode && !config.kickall && !config.kickbybl && !config.dadplus}
-                    onChange={() => {
-                      onConfigChange('kickmode', true);
-                      onConfigChange('kickall', false);
-                      onConfigChange('kickbybl', false);
-                      onConfigChange('dadplus', false);
-                    }}
+                    name="kickModeEnabled"
+                    checked={config.kickmode}
+                    onChange={() => onConfigChange('kickmode', true)}
                   />
                   Kick
                 </label>
                 <label>
                   <input
                     type="radio"
-                    name="kickModeSelection"
+                    name="kickModeEnabled"
                     checked={!config.kickmode}
-                    onChange={() => {
-                      onConfigChange('kickmode', false);
-                      onConfigChange('kickall', false);
-                      onConfigChange('kickbybl', false);
-                      onConfigChange('dadplus', false);
-                    }}
+                    onChange={() => onConfigChange('kickmode', false)}
                   />
                   N/A
                 </label>
@@ -116,10 +106,9 @@ const SettingsPanel = ({ config, onConfigChange }) => {
                 <label>
                   <input
                     type="radio"
-                    name="kickModeSelection"
-                    checked={config.kickmode && !config.kickall && !config.kickbybl && !config.dadplus}
+                    name="kickType"
+                    checked={!config.kickall && !config.kickbybl && !config.dadplus}
                     onChange={() => {
-                      onConfigChange('kickmode', true);
                       onConfigChange('kickall', false);
                       onConfigChange('kickbybl', false);
                       onConfigChange('dadplus', false);
@@ -130,10 +119,9 @@ const SettingsPanel = ({ config, onConfigChange }) => {
                 <label>
                   <input
                     type="radio"
-                    name="kickModeSelection"
+                    name="kickType"
                     checked={config.kickall}
                     onChange={() => {
-                      onConfigChange('kickmode', true);
                       onConfigChange('kickall', true);
                       onConfigChange('kickbybl', false);
                       onConfigChange('dadplus', false);
@@ -146,10 +134,9 @@ const SettingsPanel = ({ config, onConfigChange }) => {
                 <label>
                   <input
                     type="radio"
-                    name="kickModeSelection"
+                    name="kickType"
                     checked={config.kickbybl}
                     onChange={() => {
-                      onConfigChange('kickmode', true);
                       onConfigChange('kickall', false);
                       onConfigChange('kickbybl', true);
                       onConfigChange('dadplus', false);
@@ -160,10 +147,9 @@ const SettingsPanel = ({ config, onConfigChange }) => {
                 <label>
                   <input
                     type="radio"
-                    name="kickModeSelection"
+                    name="kickType"
                     checked={config.dadplus}
                     onChange={() => {
-                      onConfigChange('kickmode', true);
                       onConfigChange('kickall', false);
                       onConfigChange('kickbybl', false);
                       onConfigChange('dadplus', true);
@@ -193,13 +179,13 @@ const SettingsPanel = ({ config, onConfigChange }) => {
         <div className="input-row">
           <input
             type="number"
-            value={config.incrementvalue}
-            onChange={(e) => onConfigChange('incrementvalue', parseInt(e.target.value))}
+            value={config.incrementvalue || ''}
+            onChange={(e) => onConfigChange('incrementvalue', parseInt(e.target.value) || 0)}
           />
           <input
             type="number"
-            value={config.decrementvalue}
-            onChange={(e) => onConfigChange('decrementvalue', parseInt(e.target.value))}
+            value={config.decrementvalue || ''}
+            onChange={(e) => onConfigChange('decrementvalue', parseInt(e.target.value) || 0)}
           />
         </div>
       </div>
@@ -209,13 +195,13 @@ const SettingsPanel = ({ config, onConfigChange }) => {
         <div className="input-row">
           <input
             type="number"
-            value={config.mindef}
-            onChange={(e) => onConfigChange('mindef', parseInt(e.target.value))}
+            value={config.mindef || ''}
+            onChange={(e) => onConfigChange('mindef', parseInt(e.target.value) || 0)}
           />
           <input
             type="number"
-            value={config.maxdef}
-            onChange={(e) => onConfigChange('maxdef', parseInt(e.target.value))}
+            value={config.maxdef || ''}
+            onChange={(e) => onConfigChange('maxdef', parseInt(e.target.value) || 0)}
           />
         </div>
       </div>
@@ -225,13 +211,13 @@ const SettingsPanel = ({ config, onConfigChange }) => {
         <div className="input-row">
           <input
             type="number"
-            value={config.minatk}
-            onChange={(e) => onConfigChange('minatk', parseInt(e.target.value))}
+            value={config.minatk || ''}
+            onChange={(e) => onConfigChange('minatk', parseInt(e.target.value) || 0)}
           />
           <input
             type="number"
-            value={config.maxatk}
-            onChange={(e) => onConfigChange('maxatk', parseInt(e.target.value))}
+            value={config.maxatk || ''}
+            onChange={(e) => onConfigChange('maxatk', parseInt(e.target.value) || 0)}
           />
         </div>
       </div>

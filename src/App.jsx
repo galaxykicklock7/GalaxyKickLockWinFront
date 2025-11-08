@@ -61,20 +61,33 @@ function App() {
     kickbybl: false,
     dadplus: false,
     kickall: false,
-    reconnect: 5000,
-    rotateRC: false
+    reconnect: 5000
   });
 
   const handleConfigChange = (key, value) => {
-    setConfig(prev => ({ ...prev, [key]: value }));
+    setConfig(prev => {
+      const newConfig = { ...prev, [key]: value };
+      
+      // Auto-save to backend immediately (non-blocking)
+      updateConfig(newConfig).then(() => {
+        console.log(`Config updated: ${key} = ${value}`);
+      }).catch(err => {
+        console.error('Failed to update config:', err);
+      });
+      
+      return newConfig;
+    });
   };
 
   const handleConnect = async () => {
     try {
+      console.log('Sending configuration to backend:', config);
       // Update configuration first
       await updateConfig(config);
+      console.log('Configuration sent successfully');
       // Then connect
       await connect();
+      console.log('Connected successfully');
     } catch (err) {
       console.error('Connection failed:', err);
       alert(`Connection failed: ${err.message}`);
@@ -149,6 +162,7 @@ function App() {
             onFlyToPlanet={handleFlyToPlanet}
             connected={connected}
             loading={loading}
+            status={status}
           />
         </div>
 

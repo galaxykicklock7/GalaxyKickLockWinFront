@@ -29,6 +29,49 @@
   color: #2196F3;
 }
 
+.code-label-with-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.ws-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.ws-connected {
+  background-color: #4caf50;
+  box-shadow: 0 0 8px #4caf50;
+  animation: blink-green 2s infinite;
+}
+
+.ws-disconnected {
+  background-color: #f44336;
+  animation: blink-red 2s infinite;
+}
+
+@keyframes blink-green {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes blink-red {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
 .code-row {
   display: grid;
   grid-template-columns: 1fr 1fr 80px 80px;

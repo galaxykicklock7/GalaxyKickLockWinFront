@@ -9,7 +9,8 @@ const ConnectionPanel = ({
   onReleaseAll,
   onFlyToPlanet,
   connected,
-  loading
+  loading,
+  status
 }) => {
   return (
     <fieldset className="connection-panel">
@@ -19,7 +20,10 @@ const ConnectionPanel = ({
         {[1, 2, 3, 4].map((num) => (
           <div key={num} className="code-row-container">
             <div className="code-labels">
-              <span>Code {num}</span>
+              <span className="code-label-with-status">
+                <span className={`ws-status-dot ${status?.websockets?.[`ws${num}`] ? 'ws-connected' : 'ws-disconnected'}`}></span>
+                Code {num}
+              </span>
               <span>Code {num} Alt</span>
               <span>Defense</span>
               <span>Attack</span>
@@ -42,14 +46,14 @@ const ConnectionPanel = ({
               <input
                 type="number"
                 className="timer-input"
-                value={config[`waiting${num}`]}
-                onChange={(e) => onConfigChange(`waiting${num}`, parseInt(e.target.value))}
+                value={config[`waiting${num}`] || ''}
+                onChange={(e) => onConfigChange(`waiting${num}`, parseInt(e.target.value) || 0)}
               />
               <input
                 type="number"
                 className="timer-input"
-                value={config[`attack${num}`]}
-                onChange={(e) => onConfigChange(`attack${num}`, parseInt(e.target.value))}
+                value={config[`attack${num}`] || ''}
+                onChange={(e) => onConfigChange(`attack${num}`, parseInt(e.target.value) || 0)}
               />
             </div>
           </div>
@@ -99,8 +103,8 @@ const ConnectionPanel = ({
             <label>Reconnect (ms):</label>
             <input
               type="number"
-              value={config.reconnect}
-              onChange={(e) => onConfigChange('reconnect', parseInt(e.target.value))}
+              value={config.reconnect || ''}
+              onChange={(e) => onConfigChange('reconnect', parseInt(e.target.value) || 0)}
             />
           </div>
         </div>

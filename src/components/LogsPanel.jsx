@@ -41,6 +41,7 @@ const LogsPanel = ({ logs }) => {
         <LogWindow title="Connection 2" logs={logs.log2} />
         <LogWindow title="Connection 3" logs={logs.log3} />
         <LogWindow title="Connection 4" logs={logs.log4} />
+        <LogWindow title="Kick Connection" logs={logs.log5} />
       </div>
     </fieldset>
   );

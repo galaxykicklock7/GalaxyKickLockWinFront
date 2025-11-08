@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '../utils/api';
 
-export const useBackendStatus = (pollInterval = 2000) => {
+export const useBackendStatus = () => {
   const [status, setStatus] = useState(null);
-  const [logs, setLogs] = useState({ log1: [], log2: [], log3: [], log4: [] });
+  const [logs, setLogs] = useState({ log1: [], log2: [], log3: [], log4: [], log5: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [connected, setConnected] = useState(false);
@@ -25,24 +25,31 @@ export const useBackendStatus = (pollInterval = 2000) => {
   const fetchLogs = useCallback(async () => {
     try {
       const logsData = await apiClient.getLogs();
-      setLogs(logsData.logs);
+      if (logsData && logsData.logs) {
+        setLogs(logsData.logs);
+        console.log('Logs updated:', logsData.logs);
+      }
     } catch (err) {
       console.error('Failed to fetch logs:', err);
     }
   }, []);
 
-  // Poll status and logs
+  // Efficient polling - only when connected
   useEffect(() => {
+    // Initial fetch
     fetchStatus();
     fetchLogs();
 
-    const interval = setInterval(() => {
+    // Poll every 1 second for real-time feel
+    const pollInterval = setInterval(() => {
       fetchStatus();
       fetchLogs();
-    }, pollInterval);
+    }, 1000);
 
-    return () => clearInterval(interval);
-  }, [fetchStatus, fetchLogs, pollInterval]);
+    return () => {
+      clearInterval(pollInterval);
+    };
+  }, [fetchStatus, fetchLogs]);
 
   const connect = useCallback(async () => {
     try {
@@ -74,17 +81,14 @@ export const useBackendStatus = (pollInterval = 2000) => {
 
   const updateConfig = useCallback(async (config) => {
     try {
-      setLoading(true);
       const result = await apiClient.configure(config);
-      await fetchStatus();
+      // Don't fetch status immediately to avoid overwriting the UI
       return result;
     } catch (err) {
       setError(err.message);
       throw err;
-    } finally {
-      setLoading(false);
     }
-  }, [fetchStatus]);
+  }, []);
 
   const sendCommand = useCallback(async (wsNumber, command) => {
     try {
