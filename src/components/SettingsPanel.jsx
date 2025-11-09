@@ -8,21 +8,9 @@ const SettingsPanel = ({ config, onConfigChange }) => {
       
       <div className="settings-grid">
         <div className="settings-column">
-          <div className="settings-section">
+          <div className="settings-section settings-section-bordered">
             <span className="section-label">Mode</span>
             <div className="radio-row">
-              <label>
-                <input
-                  type="radio"
-                  name="mode"
-                  checked={!config.exitting && !config.sleeping}
-                  onChange={() => {
-                    onConfigChange('exitting', false);
-                    onConfigChange('sleeping', false);
-                  }}
-                />
-                Off Mode
-              </label>
               <label>
                 <input
                   type="radio"
@@ -79,16 +67,20 @@ const SettingsPanel = ({ config, onConfigChange }) => {
         </div>
 
         <div className="settings-column">
-          <div className="settings-section">
+          <div className="settings-section settings-section-bordered">
             <span className="section-label">Kick Mode</span>
             <div className="kick-mode-grid">
-              <div className="radio-row">
+              <div className="radio-row kick-mode-primary">
                 <label>
                   <input
                     type="radio"
                     name="kickModeEnabled"
-                    checked={config.kickmode}
-                    onChange={() => onConfigChange('kickmode', true)}
+                    checked={config.kickmode && !config.imprisonmode && !config.modena}
+                    onChange={() => {
+                      onConfigChange('kickmode', true);
+                      onConfigChange('imprisonmode', false);
+                      onConfigChange('modena', false);
+                    }}
                   />
                   Kick
                 </label>
@@ -96,8 +88,25 @@ const SettingsPanel = ({ config, onConfigChange }) => {
                   <input
                     type="radio"
                     name="kickModeEnabled"
-                    checked={!config.kickmode}
-                    onChange={() => onConfigChange('kickmode', false)}
+                    checked={config.imprisonmode && !config.kickmode && !config.modena}
+                    onChange={() => {
+                      onConfigChange('imprisonmode', true);
+                      onConfigChange('kickmode', false);
+                      onConfigChange('modena', false);
+                    }}
+                  />
+                  Imprison
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="kickModeEnabled"
+                    checked={!config.kickmode && !config.imprisonmode && config.modena}
+                    onChange={() => {
+                      onConfigChange('kickmode', false);
+                      onConfigChange('imprisonmode', false);
+                      onConfigChange('modena', true);
+                    }}
                   />
                   N/A
                 </label>

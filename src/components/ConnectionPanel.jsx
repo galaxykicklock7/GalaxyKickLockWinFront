@@ -17,7 +17,7 @@ const ConnectionPanel = ({
       <legend>Connection</legend>
 
       <div className="codes-grid">
-        {[1, 2, 3, 4].map((num) => (
+        {[1, 2, 3, 4, 5].map((num) => (
           <div key={num} className="code-row-container">
             <div className="code-labels">
               <span className="code-label-with-status">
@@ -75,60 +75,34 @@ const ConnectionPanel = ({
         >
           Exit
         </button>
+        <button 
+          className="btn btn-release" 
+          onClick={onReleaseAll}
+          disabled={!connected}
+        >
+          Release All
+        </button>
       </div>
 
       <div className="connection-grid">
         <div className="connection-column">
           <div className="form-group">
             <label>Planet:</label>
-            <input
-              type="text"
-              value={config.planet}
-              onChange={(e) => onConfigChange('planet', e.target.value)}
-              placeholder="Enter planet"
-            />
-          </div>
-
-          <div className="form-group">
-            <button 
-              className="btn" 
-              onClick={onFlyToPlanet}
-              disabled={!connected || !config.planet}
-            >
-              Fly
-            </button>
-          </div>
-
-          <div className="form-group">
-            <label>Reconnect (ms):</label>
-            <input
-              type="number"
-              value={config.reconnect || ''}
-              onChange={(e) => onConfigChange('reconnect', parseInt(e.target.value) || 0)}
-            />
-          </div>
-        </div>
-
-        <div className="connection-column">
-          <div className="form-group">
-            <label>Kick Code:</label>
-            <input
-              type="text"
-              maxLength="10"
-              value={config.kickrc}
-              onChange={(e) => onConfigChange('kickrc', e.target.value)}
-              placeholder="Kick Code"
-            />
-          </div>
-
-          <div className="form-group">
-            <button 
-              className="btn btn-action" 
-              onClick={onReleaseAll}
-              disabled={!connected}
-            >
-              Release All
-            </button>
+            <div className="planet-fly-row">
+              <input
+                type="text"
+                value={config.planet}
+                onChange={(e) => onConfigChange('planet', e.target.value)}
+                placeholder="Enter planet"
+              />
+              <button 
+                className="btn btn-fly" 
+                onClick={onFlyToPlanet}
+                disabled={!connected || !config.planet}
+              >
+                Fly
+              </button>
+            </div>
           </div>
 
           <div className="device-selection">
@@ -162,6 +136,17 @@ const ConnectionPanel = ({
               />
               Web
             </label>
+          </div>
+        </div>
+
+        <div className="connection-column">
+          <div className="form-group">
+            <label>Reconnect (ms):</label>
+            <input
+              type="number"
+              value={config.reconnect || ''}
+              onChange={(e) => onConfigChange('reconnect', parseInt(e.target.value) || 0)}
+            />
           </div>
         </div>
       </div>

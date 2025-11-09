@@ -5,6 +5,7 @@ import SettingsPanel from './components/SettingsPanel';
 import BlacklistPanel from './components/BlacklistPanel';
 import LogsPanel from './components/LogsPanel';
 import Header from './components/Header';
+import Toast from './components/Toast';
 import './App.css';
 
 function App() {
@@ -20,16 +21,24 @@ function App() {
     sendCommand
   } = useBackendStatus();
 
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = 'error') => {
+    setToast({ message, type });
+  };
+
   const [config, setConfig] = useState({
     rc1: '',
     rc2: '',
     rc3: '',
     rc4: '',
+    rc5: '',
     kickrc: '',
     rcl1: '',
     rcl2: '',
     rcl3: '',
     rcl4: '',
+    rcl5: '',
     planet: '',
     device: '312',
     autorelease: false,
@@ -38,6 +47,7 @@ function App() {
     exitting: true,
     sleeping: false,
     kickmode: true,
+    imprisonmode: false,
     blacklist: '',
     gangblacklist: '',
     kblacklist: '',
@@ -46,10 +56,12 @@ function App() {
     attack2: 1940,
     attack3: 1940,
     attack4: 1940,
+    attack5: 1940,
     waiting1: 1910,
     waiting2: 1910,
     waiting3: 1910,
     waiting4: 1910,
+    waiting5: 1910,
     timershift: false,
     incrementvalue: 10,
     decrementvalue: 10,
@@ -66,6 +78,57 @@ function App() {
 
   const handleConfigChange = (key, value) => {
     setConfig(prev => {
+      // Validate RC codes for duplicates
+      if (key.startsWith('rc') || key === 'kickrc') {
+        const newConfig = { ...prev, [key]: value };
+        
+        // Skip validation if value is empty
+        if (!value || value.trim() === '') {
+          // Auto-save to backend immediately (non-blocking)
+          updateConfig(newConfig).then(() => {
+            console.log(`Config updated: ${key} = ${value}`);
+          }).catch(err => {
+            console.error('Failed to update config:', err);
+          });
+          return newConfig;
+        }
+        
+        // Collect all RC codes
+        const allCodes = [];
+        
+        // Main RC codes
+        ['rc1', 'rc2', 'rc3', 'rc4', 'rc5'].forEach(rcKey => {
+          const codeValue = rcKey === key ? value : newConfig[rcKey];
+          if (codeValue && codeValue.trim() !== '') {
+            allCodes.push({ key: rcKey, value: codeValue });
+          }
+        });
+        
+        // Alt RC codes
+        ['rcl1', 'rcl2', 'rcl3', 'rcl4', 'rcl5'].forEach(rcKey => {
+          const codeValue = rcKey === key ? value : newConfig[rcKey];
+          if (codeValue && codeValue.trim() !== '') {
+            allCodes.push({ key: rcKey, value: codeValue });
+          }
+        });
+        
+        // Kick code
+        const kickValue = key === 'kickrc' ? value : newConfig.kickrc;
+        if (kickValue && kickValue.trim() !== '') {
+          allCodes.push({ key: 'kickrc', value: kickValue });
+        }
+        
+        // Check for duplicates
+        const codeValues = allCodes.map(c => c.value.toLowerCase());
+        const duplicates = codeValues.filter((val, idx) => codeValues.indexOf(val) !== idx);
+        
+        if (duplicates.length > 0) {
+          console.warn(`Duplicate code detected: ${value}. Code not updated.`);
+          showToast('This code is already in use. Please use a unique code.', 'error');
+          return prev; // Don't update if duplicate
+        }
+      }
+      
       const newConfig = { ...prev, [key]: value };
       
       // Auto-save to backend immediately (non-blocking)
@@ -90,7 +153,19 @@ function App() {
       console.log('Connected successfully');
     } catch (err) {
       console.error('Connection failed:', err);
-      alert(`Connection failed: ${err.message}`);
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to connect to backend';
+      
+      if (err.message.includes('fetch') || err.message.includes('Network')) {
+        errorMessage = 'Cannot reach backend server. Please check if the server is running.';
+      } else if (err.message.includes('timeout')) {
+        errorMessage = 'Connection timeout. Server is not responding.';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      showToast(errorMessage, 'error');
     }
   };
 
@@ -105,25 +180,28 @@ function App() {
 
   const handleReleaseAll = async () => {
     try {
-      // Send ACTION 2 to all connected websockets
-      const promises = [];
-      if (status?.websockets?.ws1) promises.push(sendCommand(1, 'ACTION 2'));
-      if (status?.websockets?.ws2) promises.push(sendCommand(2, 'ACTION 2'));
-      if (status?.websockets?.ws3) promises.push(sendCommand(3, 'ACTION 2'));
-      if (status?.websockets?.ws4) promises.push(sendCommand(4, 'ACTION 2'));
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/release`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       
-      await Promise.all(promises);
-      alert('Release command sent to all connections');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Release command sent successfully:', data);
     } catch (err) {
       console.error('Release failed:', err);
-      alert(`Release failed: ${err.message}`);
     }
   };
 
   const handleFlyToPlanet = async () => {
     try {
       if (!config.planet) {
-        alert('Please enter a planet name');
+        console.log('Please enter a planet name');
         return;
       }
       
@@ -133,12 +211,12 @@ function App() {
       if (status?.websockets?.ws2) promises.push(sendCommand(2, `JOIN ${config.planet}`));
       if (status?.websockets?.ws3) promises.push(sendCommand(3, `JOIN ${config.planet}`));
       if (status?.websockets?.ws4) promises.push(sendCommand(4, `JOIN ${config.planet}`));
+      if (status?.websockets?.ws5) promises.push(sendCommand(5, `JOIN ${config.planet}`));
       
       await Promise.all(promises);
-      alert(`Flying to ${config.planet}`);
+      console.log(`Flying to ${config.planet}`);
     } catch (err) {
       console.error('Fly failed:', err);
-      alert(`Fly failed: ${err.message}`);
     }
   };
 
@@ -182,6 +260,14 @@ function App() {
       </div>
 
       <LogsPanel logs={logs} />
+      
+      {toast && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast(null)} 
+        />
+      )}
       
       <footer className="footer">
         <p>© 2025 | Created by THALA</p>

@@ -12,10 +12,8 @@ const api = axios.create({
   }
 });
 
-// Add bypass-tunnel-reminder header only for LocalTunnel URLs
-if (BACKEND_URL.includes('loca.lt')) {
-  api.defaults.headers.common['bypass-tunnel-reminder'] = 'true';
-}
+// For LocalTunnel, we'll handle bypass differently (via query param or direct access)
+const isLocalTunnel = BACKEND_URL.includes('loca.lt');
 
 // API methods
 export const apiClient = {
