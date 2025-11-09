@@ -27,7 +27,18 @@ function App() {
     setToast({ message, type });
   };
 
-  const [config, setConfig] = useState({
+  // Load config from localStorage or use defaults
+  const getInitialConfig = () => {
+    const savedConfig = localStorage.getItem('galaxyKickLockConfig');
+    if (savedConfig) {
+      try {
+        return JSON.parse(savedConfig);
+      } catch (err) {
+        console.error('Failed to parse saved config:', err);
+      }
+    }
+    // Return default config if nothing saved
+    return {
     rc1: '',
     rc2: '',
     rc3: '',
@@ -74,7 +85,10 @@ function App() {
     dadplus: false,
     kickall: false,
     reconnect: 5000
-  });
+    };
+  };
+
+  const [config, setConfig] = useState(getInitialConfig());
 
   const handleConfigChange = (key, value) => {
     setConfig(prev => {
@@ -131,12 +145,22 @@ function App() {
       
       const newConfig = { ...prev, [key]: value };
       
-      // Auto-save to backend immediately (non-blocking)
-      updateConfig(newConfig).then(() => {
-        console.log(`Config updated: ${key} = ${value}`);
-      }).catch(err => {
-        console.error('Failed to update config:', err);
-      });
+      // Debounce backend updates - wait 1 second after user stops typing
+      if (window.configUpdateTimer) {
+        clearTimeout(window.configUpdateTimer);
+      }
+      
+      window.configUpdateTimer = setTimeout(() => {
+        // Save to localStorage
+        localStorage.setItem('galaxyKickLockConfig', JSON.stringify(newConfig));
+        
+        // Send to backend
+        updateConfig(newConfig).then(() => {
+          console.log(`Config updated: ${key} = ${value}`);
+        }).catch(err => {
+          console.error('Failed to update config:', err);
+        });
+      }, 1000);
       
       return newConfig;
     });
