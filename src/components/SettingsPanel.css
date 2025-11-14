@@ -122,3 +122,55 @@
   border-radius: 3px;
   box-sizing: border-box;
 }
+
+/* Inline Two-Column Layout */
+.settings-grid-inline {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.settings-column-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ai-adaptive-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ai-adaptive-row input[type="number"] {
+  flex: 1;
+  font-size: 13px;
+  padding: 5px 6px;
+  text-align: center;
+  border: 1px solid #555;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: white;
+  border-radius: 3px;
+  box-sizing: border-box;
+}
+
+.adaptive-checkbox {
+  display: flex;
+  align-items: center;
+  padding: 5px 10px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+  border: 1px solid #555;
+  min-height: 35px;
+}
+
+.adaptive-checkbox .checkbox-label {
+  margin: 0;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.ai-mode-label {
+  color: #4fc3f7 !important;
+  font-weight: 600;
+}

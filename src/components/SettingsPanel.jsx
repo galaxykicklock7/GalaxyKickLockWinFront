@@ -173,14 +173,29 @@ const SettingsPanel = ({ config, onConfigChange }) => {
       </div>
 
       <div className="settings-section-full">
-        <label className="checkbox-label">
-          <input
-            type="checkbox"
-            checked={config.timershift}
-            onChange={(e) => onConfigChange('timershift', e.target.checked)}
-          />
-          Auto Interval
-        </label>
+        <div className="settings-grid-inline">
+          <div className="settings-column-inline">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={config.timershift}
+                onChange={(e) => onConfigChange('timershift', e.target.checked)}
+              />
+              Auto Interval
+            </label>
+          </div>
+          
+          <div className="settings-column-inline">
+            <label className="checkbox-label ai-mode-label">
+              <input
+                type="checkbox"
+                checked={config.aiMode}
+                onChange={(e) => onConfigChange('aiMode', e.target.checked)}
+              />
+              🤖 AI Mode
+            </label>
+          </div>
+        </div>
       </div>
 
       <div className="settings-section-full">

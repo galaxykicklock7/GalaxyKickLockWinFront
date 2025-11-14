@@ -84,7 +84,9 @@ function App() {
     kickbybl: false,
     dadplus: false,
     kickall: false,
-    reconnect: 5000
+    reconnect: 5000,
+    // AI Mode (backend handles all AI settings with defaults)
+    aiMode: false
     };
   };
 
