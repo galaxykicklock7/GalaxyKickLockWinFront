@@ -3,12 +3,24 @@ import axios from 'axios';
 // Get backend URL from environment variable or use default
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 
+// Only use proxy for localhost backends, use direct URL for tunnels/production
+const isDevelopment = import.meta.env.DEV;
+const isLocalBackend = BACKEND_URL.includes('localhost') || BACKEND_URL.includes('127.0.0.1');
+const baseURL = (isDevelopment && isLocalBackend) ? '' : BACKEND_URL;
+
+console.log('API Configuration:');
+console.log('- BACKEND_URL:', BACKEND_URL);
+console.log('- isDevelopment:', isDevelopment);
+console.log('- isLocalBackend:', isLocalBackend);
+console.log('- baseURL (used by axios):', baseURL);
+
 // Create axios instance
 const api = axios.create({
-  baseURL: BACKEND_URL,
+  baseURL: baseURL,
   timeout: 30000,
   headers: {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'bypass-tunnel-reminder': 'true'
   }
 });
 
@@ -25,13 +37,27 @@ export const apiClient = {
 
   // Get status
   async getStatus() {
-    const response = await api.get('/api/status');
+    // Add timestamp to prevent caching
+    const response = await api.get(`/api/status?t=${Date.now()}`, {
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      }
+    });
     return response.data;
   },
 
   // Get logs
   async getLogs() {
-    const response = await api.get('/api/logs');
+    // Add timestamp to prevent caching
+    const response = await api.get(`/api/logs?t=${Date.now()}`, {
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      }
+    });
+    console.log('getLogs API response:', response);
+    console.log('getLogs response.data:', response.data);
     return response.data;
   },
 

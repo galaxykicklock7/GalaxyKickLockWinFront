@@ -1,7 +1,7 @@
 import React from 'react';
 import './Header.css';
 
-const Header = ({ status, connected, loading, error }) => {
+const Header = ({ status, connected, loading, error, currentUser, onLogout }) => {
   return (
     <header className="header">
       <h1 className="title">GALAXY KICK LOCK 2.0</h1>
@@ -17,6 +17,15 @@ const Header = ({ status, connected, loading, error }) => {
             {loading ? 'Connecting...' : connected ? 'Connected' : 'Disconnected'}
           </span>
         </div>
+
+        {currentUser && (
+          <div className="user-info">
+            <span className="username">👤 {currentUser.username}</span>
+            <button className="logout-button" onClick={onLogout}>
+              Logout
+            </button>
+          </div>
+        )}
 
         {error && (
           <div className="error-message">

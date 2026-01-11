@@ -25,9 +25,18 @@ export const useBackendStatus = () => {
   const fetchLogs = useCallback(async () => {
     try {
       const logsData = await apiClient.getLogs();
-      if (logsData && logsData.logs) {
+      console.log('Raw logs response:', logsData);
+      
+      // Backend returns logs directly, not wrapped in a 'logs' property
+      if (logsData && (logsData.log1 || logsData.log2 || logsData.log3 || logsData.log4 || logsData.log5)) {
+        console.log('Setting logs:', logsData);
+        setLogs(logsData);
+      } else if (logsData && logsData.logs) {
+        // Fallback: if backend wraps in 'logs' property
+        console.log('Setting logs (wrapped):', logsData.logs);
         setLogs(logsData.logs);
-        console.log('Logs updated:', logsData.logs);
+      } else {
+        console.warn('Logs data structure unexpected:', logsData);
       }
     } catch (err) {
       console.error('Failed to fetch logs:', err);

@@ -59,8 +59,47 @@
 .error-message {
   color: #ff5252;
   font-size: 13px;
-  padding: 8px 16px;
-  background-color: rgba(244, 67, 54, 0.1);
+  padding: 8px 0;
+  background-color: transparent;
+  border-radius: 0;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+}
+
+.username {
+  color: white;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.logout-button {
+  padding: 6px 16px;
+  background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+  color: white;
+  border: none;
   border-radius: 4px;
-  border: 1px solid #ff5252;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.logout-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(244, 67, 54, 0.4);
+}
+
+.logout-button:active {
+  transform: translateY(0);
 }

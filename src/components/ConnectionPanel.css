@@ -55,18 +55,24 @@
 }
 
 @keyframes blink-green {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.3;
   }
 }
 
 @keyframes blink-red {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.3;
   }
@@ -82,14 +88,16 @@
 .code-row input[type="text"] {
   width: 100%;
   font-size: 12px;
-  padding: 4px 5px;
+  padding: 6px 8px;
+  /* Increased from 4px 5px */
   box-sizing: border-box;
 }
 
 .code-row .timer-input {
   width: 100%;
   font-size: 12px;
-  padding: 4px 5px;
+  padding: 6px 8px;
+  /* Increased from 4px 5px */
   text-align: center;
   box-sizing: border-box;
 }
@@ -122,7 +130,8 @@
 
 .planet-fly-row input {
   font-size: 12px;
-  padding: 5px 7px;
+  padding: 7px 10px;
+  /* Increased from 5px 7px */
 }
 
 .planet-fly-row .btn {
@@ -150,7 +159,8 @@
 
 .connection-panel .form-group input {
   font-size: 12px;
-  padding: 5px 7px;
+  padding: 7px 10px;
+  /* Increased from 5px 7px */
   width: 100%;
   box-sizing: border-box;
 }

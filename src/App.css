@@ -131,6 +131,8 @@ input[type="checkbox"],
 input[type="radio"] {
   margin-right: 6px;
   cursor: pointer;
+  accent-color: #00bcd4;
+  /* Cyan accent */
 }
 
 label {
@@ -194,9 +196,12 @@ label {
 }
 
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.5;
   }
@@ -229,11 +234,11 @@ label {
   .main-container {
     grid-template-columns: 1fr;
   }
-  
+
   .app {
     height: auto;
   }
-  
+
   .left-column,
   .middle-column,
   .right-column {
