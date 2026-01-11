@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useBackendStatus } from './hooks/useBackendStatus';
 import { isAuthenticated, logoutUser, getSession } from './utils/auth';
@@ -57,6 +57,9 @@ function UserApp() {
   const [currentUser, setCurrentUser] = useState(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [toast, setToast] = useState(null);
+  
+  // Use ref to track if we've already logged out to prevent spam
+  const hasLoggedOutRef = useRef(false);
 
   // Load config from localStorage or use defaults
   const getInitialConfig = () => {
@@ -148,38 +151,149 @@ function UserApp() {
           setCurrentUser(session);
           setAuthenticated(true);
         } else {
-          // Session was invalid or expired
           setAuthenticated(false);
           setCurrentUser(null);
         }
+      } else {
+        setAuthenticated(false);
+        setCurrentUser(null);
       }
       setCheckingAuth(false);
     };
 
     checkAuth();
-  }, []);
 
-  // Periodic session validation (every 5 minutes)
+    // Generate unique tab ID for this tab (only once on mount)
+    const tabId = `tab_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    sessionStorage.setItem('tabId', tabId);
+
+    // If authenticated, claim this tab as active
+    if (isAuthenticated()) {
+      localStorage.setItem('activeTabId', tabId);
+    }
+
+    // Listen for storage changes
+    const handleStorageChange = (e) => {
+      // Prevent multiple logouts
+      if (hasLoggedOutRef.current) return;
+
+      if (e.key === 'galaxyKickLockSession') {
+        if (!e.newValue) {
+          // Session was removed
+          console.log('Session removed in another tab');
+          hasLoggedOutRef.current = true;
+          setAuthenticated(false);
+          setCurrentUser(null);
+          showToast('You have been logged out', 'info');
+        } else if (e.oldValue && e.newValue && e.oldValue !== e.newValue) {
+          // Session changed (new login)
+          try {
+            const oldSession = JSON.parse(e.oldValue);
+            const newSession = JSON.parse(e.newValue);
+            
+            if (oldSession.session_id !== newSession.session_id) {
+              console.log('New login detected');
+              hasLoggedOutRef.current = true;
+              setAuthenticated(false);
+              setCurrentUser(null);
+              showToast('You have been logged in on another device/tab', 'info');
+            }
+          } catch (err) {
+            console.error('Error parsing session:', err);
+          }
+        }
+      } else if (e.key === 'activeTabId' && e.newValue) {
+        // Another tab claimed to be active
+        const currentTabId = sessionStorage.getItem('tabId');
+        if (e.newValue !== currentTabId) {
+          console.log('Another tab claimed the session');
+          hasLoggedOutRef.current = true;
+          setAuthenticated(false);
+          setCurrentUser(null);
+          // No toast to avoid spam
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      
+      // Clear active tab if this was it
+      const currentTabId = sessionStorage.getItem('tabId');
+      const activeTabId = localStorage.getItem('activeTabId');
+      if (currentTabId === activeTabId) {
+        localStorage.removeItem('activeTabId');
+      }
+    };
+  }, []); // Run only once on mount
+
+  // Periodic session validation + visibility check
   useEffect(() => {
     if (!authenticated) return;
 
-    const validateInterval = setInterval(() => {
+    const validateSession = async () => {
+      // Prevent multiple validations if already logged out
+      if (hasLoggedOutRef.current) return;
+
       const session = getSession();
       if (!session) {
-        // Session expired or invalid
+        // Session expired or invalid locally
+        hasLoggedOutRef.current = true;
         showToast('Your session has expired. Please sign in again.', 'error');
         setAuthenticated(false);
         setCurrentUser(null);
         disconnect();
+        return;
       }
-    }, 5 * 60 * 1000); // Check every 5 minutes
 
-    return () => clearInterval(validateInterval);
+      // Validate with backend to check if session was invalidated
+      const { validateSessionWithBackend } = await import('./utils/auth');
+      const result = await validateSessionWithBackend();
+      
+      if (!result.valid) {
+        // Session invalidated on backend (logged in on another device/browser)
+        hasLoggedOutRef.current = true;
+        showToast('You have been logged in on another device', 'info');
+        setAuthenticated(false);
+        setCurrentUser(null);
+        disconnect();
+      }
+    };
+
+    // Check every 30 seconds (faster than 5 minutes)
+    const validateInterval = setInterval(validateSession, 30 * 1000);
+
+    // Also check when tab becomes visible (user switches back to this tab)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('Tab became visible, validating session...');
+        validateSession();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(validateInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [authenticated, disconnect]);
 
   const handleLoginSuccess = (userData) => {
     console.log('handleLoginSuccess called with:', userData);
     setToast(null); // Clear any existing toasts
+    
+    // Reset logout flag
+    hasLoggedOutRef.current = false;
+    
+    // Set this tab as the active tab on login
+    const tabId = sessionStorage.getItem('tabId') || `tab_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    sessionStorage.setItem('tabId', tabId);
+    localStorage.setItem('activeTabId', tabId);
+    
     setCurrentUser(userData);
     setAuthenticated(true);
     showToast(`Welcome back, ${userData.username}!`, 'success');

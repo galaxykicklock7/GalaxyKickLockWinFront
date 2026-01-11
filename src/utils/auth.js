@@ -277,6 +277,39 @@ export const isAuthenticated = () => {
 
 /**
  * Validate session with backend
+ * @returns {Promise<{valid: boolean, error?: string}>}
+ */
+export const validateSessionWithBackend = async () => {
+  try {
+    const session = getSession();
+    if (!session || !session.session_token) {
+      return { valid: false, error: 'No session found' };
+    }
+
+    const { data, error } = await supabase.rpc('validate_session', {
+      p_session_token: session.session_token
+    });
+
+    if (error) {
+      console.error('Session validation error:', error);
+      return { valid: false, error: error.message };
+    }
+
+    if (!data || !data.valid) {
+      // Session is invalid, clear local storage
+      logoutUser();
+      return { valid: false, error: data?.error || 'Session invalid' };
+    }
+
+    return { valid: true };
+  } catch (err) {
+    console.error('Session validation exception:', err);
+    return { valid: false, error: err.message };
+  }
+};
+
+/**
+ * Validate session with backend
  * @returns {Promise<boolean>}
  */
 export const validateSession = async () => {

@@ -560,6 +560,11 @@ BEGIN
     RETURN json_build_object('success', false, 'error', 'Your subscription has expired. Please contact admin.');
   END IF;
   
+  -- SINGLE SESSION ENFORCEMENT: Invalidate all previous sessions for this user
+  UPDATE public.user_sessions
+  SET is_active = false
+  WHERE user_id = v_user.id AND is_active = true;
+  
   -- Generate session token
   v_session_token := encode(
     digest(v_user.id::text || extract(epoch from now())::text || gen_random_bytes(16)::text, 'sha256'),
