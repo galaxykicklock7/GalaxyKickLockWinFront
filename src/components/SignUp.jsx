@@ -47,8 +47,63 @@ function SignUp({ onSuccess, onSwitchToSignIn }) {
     setSuccess(false);
     setLoading(true);
 
+    // Client-side validation
+    if (!username.trim()) {
+      setError('Please enter a username');
+      setLoading(false);
+      return;
+    }
+
+    if (username.trim().length < 3) {
+      setError('Username must be at least 3 characters');
+      setLoading(false);
+      return;
+    }
+
+    if (username.trim().length > 50) {
+      setError('Username must not exceed 50 characters');
+      setLoading(false);
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_-]+$/.test(username.trim())) {
+      setError('Username can only contain letters, numbers, underscores, and hyphens');
+      setLoading(false);
+      return;
+    }
+
+    if (!password) {
+      setError('Please enter a password');
+      setLoading(false);
+      return;
+    }
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
+      setLoading(false);
+      return;
+    }
+
+    if (!confirmPassword) {
+      setError('Please confirm your password');
+      setLoading(false);
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      setLoading(false);
+      return;
+    }
+
+    if (!token.trim()) {
+      setError('Please enter your access token');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const result = await registerUser(username, password, confirmPassword, token);
+      const result = await registerUser(username.trim(), password, confirmPassword, token.trim());
 
       if (result.success) {
         setSuccess(true);
@@ -64,10 +119,11 @@ function SignUp({ onSuccess, onSwitchToSignIn }) {
           onSuccess();
         }, 2000);
       } else {
-        setError(result.error);
+        setError(result.error || 'Registration failed. Please try again.');
       }
     } catch (err) {
-      setError('An unexpected error occurred');
+      console.error('Registration error:', err);
+      setError('Unable to connect to server. Please try again later.');
     } finally {
       setLoading(false);
     }

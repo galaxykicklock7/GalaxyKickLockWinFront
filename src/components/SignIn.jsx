@@ -14,23 +14,43 @@ function SignIn({ onSuccess, onSwitchToSignUp }) {
     setError('');
     setLoading(true);
 
+    // Client-side validation
+    if (!username.trim()) {
+      setError('Please enter your username');
+      setLoading(false);
+      return;
+    }
+
+    if (!password) {
+      setError('Please enter your password');
+      setLoading(false);
+      return;
+    }
+
+    if (username.trim().length < 3) {
+      setError('Username must be at least 3 characters');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const result = await loginUser(username, password);
+      const result = await loginUser(username.trim(), password);
 
       if (result.success) {
         // Store remember me preference
         if (rememberMe) {
-          localStorage.setItem('rememberedUsername', username);
+          localStorage.setItem('rememberedUsername', username.trim());
         } else {
           localStorage.removeItem('rememberedUsername');
         }
         
         onSuccess(result.data);
       } else {
-        setError(result.error);
+        setError(result.error || 'Login failed. Please check your credentials.');
       }
     } catch (err) {
-      setError('An unexpected error occurred');
+      console.error('Login error:', err);
+      setError('Unable to connect to server. Please try again later.');
     } finally {
       setLoading(false);
     }

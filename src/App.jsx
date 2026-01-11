@@ -6,13 +6,17 @@ import { isAdminAuthenticated } from './utils/adminAuth';
 import LandingPage from './pages/LandingPage';
 import AdminLandingPage from './pages/AdminLandingPage';
 import AdminDashboard from './pages/AdminDashboard';
-import ConnectionPanel from './components/ConnectionPanel';
-import SettingsPanel from './components/SettingsPanel';
-import BlacklistPanel from './components/BlacklistPanel';
-import LogsPanel from './components/LogsPanel';
-import Header from './components/Header';
+
+// PREMIUM COMPONENTS
+import CommandBar from './components/premium/CommandBar';
+import NeuralLink from './components/premium/NeuralLink';
+import CoreSystems from './components/premium/CoreSystems';
+import SecurityDatabase from './components/premium/SecurityDatabase';
+import DataStreams from './components/premium/DataStreams';
+import './components/premium/PremiumLayout.css';
+
 import Toast from './components/Toast';
-import './App.css';
+// import './App.css'; // Disabled in favor of PremiumLayout
 
 // Protected Route Component for Admin
 function ProtectedAdminRoute({ children }) {
@@ -140,8 +144,14 @@ function UserApp() {
     const checkAuth = () => {
       if (isAuthenticated()) {
         const session = getSession();
-        setCurrentUser(session);
-        setAuthenticated(true);
+        if (session) {
+          setCurrentUser(session);
+          setAuthenticated(true);
+        } else {
+          // Session was invalid or expired
+          setAuthenticated(false);
+          setCurrentUser(null);
+        }
       }
       setCheckingAuth(false);
     };
@@ -149,11 +159,30 @@ function UserApp() {
     checkAuth();
   }, []);
 
+  // Periodic session validation (every 5 minutes)
+  useEffect(() => {
+    if (!authenticated) return;
+
+    const validateInterval = setInterval(() => {
+      const session = getSession();
+      if (!session) {
+        // Session expired or invalid
+        showToast('Your session has expired. Please sign in again.', 'error');
+        setAuthenticated(false);
+        setCurrentUser(null);
+        disconnect();
+      }
+    }, 5 * 60 * 1000); // Check every 5 minutes
+
+    return () => clearInterval(validateInterval);
+  }, [authenticated, disconnect]);
+
   const handleLoginSuccess = (userData) => {
     console.log('handleLoginSuccess called with:', userData);
     setToast(null); // Clear any existing toasts
     setCurrentUser(userData);
     setAuthenticated(true);
+    showToast(`Welcome back, ${userData.username}!`, 'success');
     console.log('Authentication state set to true');
   };
 
@@ -172,9 +201,9 @@ function UserApp() {
   // Show loading while checking authentication
   if (checkingAuth) {
     return (
-      <div className="app" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+      <div className="premium-layout" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: '#00f3ff' }}>
         <div style={{ textAlign: 'center' }}>
-          <h2>Loading...</h2>
+          <h2>INITIALIZING SYSTEM...</h2>
         </div>
       </div>
     );
@@ -266,6 +295,71 @@ function UserApp() {
 
   const handleConnect = async () => {
     try {
+      // Validation: Check if at least one RC code is provided
+      const hasAnyCode = config.rc1 || config.rc2 || config.rc3 || config.rc4 || config.rc5;
+      if (!hasAnyCode) {
+        showToast('Please enter at least one connection code (PRIMARY) before connecting', 'error');
+        return;
+      }
+
+      // Validation: Check if codes with values have corresponding timing values
+      const codes = [
+        { rc: config.rc1, attack: config.attack1, waiting: config.waiting1, num: 1 },
+        { rc: config.rc2, attack: config.attack2, waiting: config.waiting2, num: 2 },
+        { rc: config.rc3, attack: config.attack3, waiting: config.waiting3, num: 3 },
+        { rc: config.rc4, attack: config.attack4, waiting: config.waiting4, num: 4 },
+        { rc: config.rc5, attack: config.attack5, waiting: config.waiting5, num: 5 },
+      ];
+
+      for (const code of codes) {
+        if (code.rc && code.rc.trim()) {
+          if (!code.attack || code.attack <= 0) {
+            showToast(`CODE ${code.num}: Please enter a valid Attack timing (ATK must be greater than 0)`, 'error');
+            return;
+          }
+          if (!code.waiting || code.waiting <= 0) {
+            showToast(`CODE ${code.num}: Please enter a valid Defense timing (DEF must be greater than 0)`, 'error');
+            return;
+          }
+        }
+      }
+
+      // Validation: Check Auto Timing values if timershift is enabled
+      if (config.timershift) {
+        if (!config.incrementvalue || config.incrementvalue <= 0) {
+          showToast('Auto Timing: Please enter a valid Increment value (must be greater than 0)', 'error');
+          return;
+        }
+        if (!config.decrementvalue || config.decrementvalue <= 0) {
+          showToast('Auto Timing: Please enter a valid Decrement value (must be greater than 0)', 'error');
+          return;
+        }
+        if (!config.minatk || config.minatk <= 0) {
+          showToast('Auto Timing: Please enter a valid Min ATK value (must be greater than 0)', 'error');
+          return;
+        }
+        if (!config.maxatk || config.maxatk <= 0) {
+          showToast('Auto Timing: Please enter a valid Max ATK value (must be greater than 0)', 'error');
+          return;
+        }
+        if (!config.mindef || config.mindef <= 0) {
+          showToast('Auto Timing: Please enter a valid Min DEF value (must be greater than 0)', 'error');
+          return;
+        }
+        if (!config.maxdef || config.maxdef <= 0) {
+          showToast('Auto Timing: Please enter a valid Max DEF value (must be greater than 0)', 'error');
+          return;
+        }
+        if (config.minatk >= config.maxatk) {
+          showToast('Auto Timing: Min ATK must be less than Max ATK', 'error');
+          return;
+        }
+        if (config.mindef >= config.maxdef) {
+          showToast('Auto Timing: Min DEF must be less than Max DEF', 'error');
+          return;
+        }
+      }
+
       console.log('Sending configuration to backend:', config);
       // Update configuration first
       await updateConfig(config);
@@ -273,6 +367,7 @@ function UserApp() {
       // Then connect
       await connect();
       console.log('Connected successfully');
+      showToast('Connected successfully!', 'success');
     } catch (err) {
       console.error('Connection failed:', err);
 
@@ -371,48 +466,58 @@ function UserApp() {
   };
 
   return (
-    <div className="app">
-      <Header
-        status={status}
-        connected={connected}
-        loading={loading}
-        error={error}
-        currentUser={currentUser}
-        onLogout={handleLogout}
-      />
-
-      <div className="main-container">
-        <div className="left-column">
-          <ConnectionPanel
-            config={config}
-            onConfigChange={handleConfigChange}
-            onConnect={handleConnect}
-            onDisconnect={handleDisconnect}
-            onReleaseAll={handleReleaseAll}
-            onFlyToPlanet={handleFlyToPlanet}
-            connected={connected}
-            loading={loading}
-            status={status}
-          />
-        </div>
-
-        <div className="middle-column">
-          <SettingsPanel
-            config={config}
-            onConfigChange={handleConfigChange}
-          />
-        </div>
-
-        <div className="right-column">
-          <BlacklistPanel
-            config={config}
-            onConfigChange={handleConfigChange}
-          />
-        </div>
+    <div className="app premium-layout">
+      {/* TITLE HEADER */}
+      <div className="app-title">
+        GALAXY KICK LOCK 2.0
       </div>
 
-      <LogsPanel logs={logs} />
+      {/* 1. TOP COMMAND BAR */}
+      <CommandBar
+        config={config}
+        onConfigChange={handleConfigChange}
+        onConnect={handleConnect}
+        onDisconnect={handleDisconnect}
+        onReleaseAll={handleReleaseAll}
+        onFlyToPlanet={handleFlyToPlanet}
+        connected={connected}
+        loading={loading}
+        onLogout={handleLogout}
+        currentUser={currentUser}
+      />
 
+      {/* 2. MAIN DASHBOARD (3 COLUMNS) */}
+      <div className="main-dashboard">
+        {/* Left: Neural Link */}
+        <NeuralLink
+          config={config}
+          onConfigChange={handleConfigChange}
+          status={status}
+        />
+
+        {/* Middle: Core Systems */}
+        <CoreSystems
+          config={config}
+          onConfigChange={handleConfigChange}
+        />
+
+        {/* Right: Security Database */}
+        <SecurityDatabase
+          config={config}
+          onConfigChange={handleConfigChange}
+          showToast={showToast}
+        />
+      </div>
+
+      {/* 3. FOOTER LOGS */}
+      <DataStreams logs={logs} />
+
+      {/* FOOTER COPYRIGHT */}
+      <div className="app-footer">
+        © 2026 THALA. All Rights Reserved.
+      </div>
+
+      {/* TOAST OVERLAY */}
       {toast && (
         <Toast
           message={toast.message}
@@ -420,10 +525,6 @@ function UserApp() {
           onClose={() => setToast(null)}
         />
       )}
-
-      <footer className="footer">
-        <p>© 2025 | Created by THALA</p>
-      </footer>
     </div>
   );
 }
