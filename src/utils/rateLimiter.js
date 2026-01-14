@@ -12,12 +12,14 @@ class RateLimiter {
     const now = Date.now();
     
     // Check if blocked
-    if (this.blocked.has(key)) {
-      const blockUntil = this.blocked.get(key);
-      if (now < blockUntil) {
-        const remainingSeconds = Math.ceil((blockUntil - now) / 1000);
-        return { allowed: false, remainingSeconds };
-      }
+    const blockUntil = this.blocked.get(key);
+    if (blockUntil && now < blockUntil) {
+      const remainingSeconds = Math.ceil((blockUntil - now) / 1000);
+      return { allowed: false, remainingSeconds };
+    }
+    
+    // Remove expired block
+    if (blockUntil && now >= blockUntil) {
       this.blocked.delete(key);
     }
 

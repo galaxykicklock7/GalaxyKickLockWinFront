@@ -165,7 +165,6 @@ function SignUp({ onSuccess, onSwitchToSignIn, onTokenFocus, onOpenQR }) {
             disabled={loading || success}
             minLength={3}
             maxLength={50}
-            pattern="[a-zA-Z0-9_-]+"
             title="Username can only contain letters, numbers, underscores, and hyphens"
           />
           <small className="form-hint">3-50 characters, alphanumeric only</small>
