@@ -307,185 +307,286 @@
 }
 
 
-/* Discord QR Code Section */
-.token-help-section {
-  margin-bottom: 16px;
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  border-radius: 12px;
-  padding: 20px;
-  animation: slideInDown 0.4s ease-out;
+/* QR Link in form hint */
+.qr-link {
+  background: none;
+  border: none;
+  color: #60a5fa;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  font-size: inherit;
+  transition: color 0.2s ease;
 }
 
-.discord-qr-container {
-  text-align: center;
+.qr-link:hover {
+  color: #3b82f6;
 }
 
-.qr-header {
+/* QR Code Modal */
+.qr-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  margin-bottom: 12px;
+  z-index: 9999;
+  padding: 20px;
+  animation: fadeIn 0.3s ease-out;
 }
 
-.qr-icon {
-  font-size: 1.5rem;
+.qr-modal-content {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 450px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.3s ease-out;
 }
 
-.qr-header h3 {
+.qr-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #60a5fa;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.qr-modal-close:hover {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.5);
+  transform: rotate(90deg);
+}
+
+.qr-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.qr-modal-header .qr-icon {
+  font-size: 2rem;
+}
+
+.qr-modal-header h3 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: #60a5fa;
   letter-spacing: -0.025em;
 }
 
-.qr-description {
-  margin: 0 0 16px 0;
-  font-size: 0.9375rem;
+.qr-modal-description {
+  text-align: center;
+  margin: 0 0 24px 0;
+  font-size: 1rem;
   color: rgba(148, 163, 184, 0.9);
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
-.qr-code-wrapper {
-  position: relative;
-  display: inline-block;
-  margin-bottom: 16px;
+.qr-modal-content .qr-code-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
 }
 
-.discord-qr-image {
-  width: 200px;
-  height: 200px;
-  border-radius: 12px;
-  border: 2px solid rgba(59, 130, 246, 0.3);
+.qr-modal-content .discord-qr-image {
+  width: 240px;
+  height: 240px;
+  border-radius: 16px;
+  border: 3px solid rgba(59, 130, 246, 0.4);
   background: white;
-  padding: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  padding: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
-.discord-qr-image:hover {
-  transform: scale(1.05);
-  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
-}
-
-.qr-placeholder {
-  width: 200px;
-  height: 200px;
-  border-radius: 12px;
-  border: 2px dashed rgba(59, 130, 246, 0.3);
-  background: rgba(15, 23, 42, 0.5);
+.qr-modal-content .qr-placeholder {
+  width: 240px;
+  height: 240px;
+  border-radius: 16px;
+  border: 3px dashed rgba(59, 130, 246, 0.4);
+  background: rgba(15, 23, 42, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-direction: column;
 }
 
-.qr-placeholder-content {
-  text-align: center;
-  padding: 20px;
+.qr-box {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
 }
 
-.qr-placeholder-icon {
-  font-size: 2.5rem;
-  display: block;
-  margin-bottom: 10px;
+.qr-corner {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border: 3px solid #000;
 }
 
-.qr-placeholder-content p {
-  margin: 0;
-  font-size: 0.875rem;
-  color: rgba(148, 163, 184, 0.8);
-  line-height: 1.5;
+.qr-corner-tl {
+  top: 8px;
+  left: 8px;
+  border-right: none;
+  border-bottom: none;
 }
 
-.qr-placeholder-content strong {
-  color: #60a5fa;
-  font-weight: 700;
+.qr-corner-tr {
+  top: 8px;
+  right: 8px;
+  border-left: none;
+  border-bottom: none;
 }
 
-.qr-instructions {
-  margin-top: 16px;
+.qr-corner-bl {
+  bottom: 8px;
+  left: 8px;
+  border-right: none;
+  border-top: none;
+}
+
+.qr-corner-br {
+  bottom: 8px;
+  right: 8px;
+  border-left: none;
+  border-top: none;
+}
+
+.qr-pattern {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 32px 24px;
+}
+
+.qr-dot {
+  width: 20px;
+  height: 20px;
+  background: #000;
+  border-radius: 3px;
+}
+
+.qr-modal-content .qr-instructions {
   text-align: left;
-  display: inline-block;
+  margin-bottom: 24px;
 }
 
-.qr-step {
+.qr-modal-content .qr-step {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 10px;
-  font-size: 0.9375rem;
-  color: rgba(148, 163, 184, 0.9);
-  line-height: 1.5;
+  gap: 14px;
+  margin-bottom: 12px;
+  font-size: 1rem;
+  color: rgba(148, 163, 184, 0.95);
+  line-height: 1.6;
 }
 
-.qr-step:last-child {
+.qr-modal-content .qr-step:last-child {
   margin-bottom: 0;
 }
 
-.step-number {
+.qr-modal-content .step-number {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   background: rgba(59, 130, 246, 0.2);
   border: 1px solid rgba(59, 130, 246, 0.4);
   border-radius: 50%;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 700;
   color: #60a5fa;
   flex-shrink: 0;
 }
 
-.qr-step strong {
-  color: #60a5fa;
+.qr-modal-button {
+  width: 100%;
+  height: 44px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
   font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Inter', sans-serif;
 }
 
-/* Responsive QR Section */
+.qr-modal-button:hover {
+  background: #2563eb;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive Modal */
 @media (max-width: 480px) {
-  .token-help-section {
-    padding: 16px;
+  .qr-modal-content {
+    padding: 24px;
   }
 
-  .qr-header h3 {
-    font-size: 1.125rem;
+  .qr-modal-header h3 {
+    font-size: 1.25rem;
   }
 
-  .discord-qr-image,
-  .qr-placeholder {
-    width: 180px;
-    height: 180px;
+  .qr-modal-content .discord-qr-image,
+  .qr-modal-content .qr-placeholder {
+    width: 200px;
+    height: 200px;
   }
 
-  .qr-description {
-    font-size: 0.875rem;
-  }
-
-  .qr-step {
-    font-size: 0.875rem;
+  .qr-box {
+    width: 140px;
+    height: 140px;
   }
 }
 
-@media (max-height: 600px) and (orientation: landscape) {
-  .token-help-section {
-    padding: 12px;
-  }
-
-  .discord-qr-image,
-  .qr-placeholder {
-    width: 150px;
-    height: 150px;
-  }
-
-  .qr-instructions {
-    margin-top: 12px;
-  }
-
-  .qr-step {
-    margin-bottom: 6px;
-    font-size: 0.8125rem;
-  }
-}
