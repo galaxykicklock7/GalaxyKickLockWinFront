@@ -68,7 +68,7 @@ const CoreSystems = ({ config, onConfigChange }) => {
                 <div className="control-section">
                     <span className="section-label">KICK PROTOCOLS</span>
                     <div className="kick-grid">
-                        {/* Row 1: Primary Action (KICK, IMPRISON, N/A) - Always one selected */}
+                        {/* Row 1: Primary Action (KICK, IMPRISON, BAN) - Always one selected */}
                         <div className="kick-row">
                             <div
                                 className={`protocol-btn ${config.kickmode ? 'active' : ''}`}
@@ -97,8 +97,9 @@ const CoreSystems = ({ config, onConfigChange }) => {
                                     onConfigChange('kickmode', false);
                                     onConfigChange('imprisonmode', false);
                                 }}
+                                title="Ban users"
                             >
-                                N/A
+                                BAN
                             </div>
                         </div>
 
@@ -131,7 +132,7 @@ const CoreSystems = ({ config, onConfigChange }) => {
                                     onConfigChange('kickall', false);
                                     onConfigChange('dadplus', false);
                                 }}
-                                title={config.imprisonmode ? 'Uses IMPRISON blacklist' : config.kickmode ? 'Uses KICK blacklist' : 'Uses ALL blacklists'}
+                                title={config.imprisonmode ? 'Uses IMPRISON blacklist' : config.kickmode ? 'Uses KICK blacklist' : 'Uses ALL blacklists (BAN mode)'}
                             >
                                 BLACKLIST
                             </div>
