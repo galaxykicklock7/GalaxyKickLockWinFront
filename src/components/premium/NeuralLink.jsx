@@ -4,6 +4,7 @@ import './PremiumLayout.css';
 
 const NeuralLink = ({ config, onConfigChange, status }) => {
     // Get prison status from backend status
+    // Backend should return: { prisonStatus: { "actualcode1": true, "actualcode2": false, ... } }
     const prisonStatus = status?.prisonStatus || {};
     
     return (
@@ -19,10 +20,14 @@ const NeuralLink = ({ config, onConfigChange, status }) => {
                     const isConnected = status?.websockets?.[`ws${num}`] || status?.wsStatus?.[`ws${num}`];
                     
                     // Get prison status for PRIMARY (rc) and ALT (rcl)
+                    // Each recovery code (like "abc123") has its own prison status
                     const primaryCode = config[`rc${num}`];
                     const altCode = config[`rcl${num}`];
-                    const primaryInPrison = primaryCode && prisonStatus[primaryCode.toLowerCase()];
-                    const altInPrison = altCode && prisonStatus[altCode.toLowerCase()];
+                    
+                    // Check if the actual recovery code value is in prison
+                    // Backend returns prison status keyed by the actual code value (lowercase)
+                    const primaryInPrison = primaryCode && primaryCode.trim() !== '' && prisonStatus[primaryCode.toLowerCase().trim()];
+                    const altInPrison = altCode && altCode.trim() !== '' && prisonStatus[altCode.toLowerCase().trim()];
                     
                     return (
                         <div key={num} className="code-card">
@@ -47,7 +52,7 @@ const NeuralLink = ({ config, onConfigChange, status }) => {
                                         placeholder="PRIMARY"
                                         style={{ color: '#fff', paddingRight: '22px' }}
                                     />
-                                    {primaryCode && (
+                                    {primaryCode && primaryCode.trim() !== '' && (
                                         <span 
                                             style={{ 
                                                 position: 'absolute', 
@@ -71,7 +76,7 @@ const NeuralLink = ({ config, onConfigChange, status }) => {
                                         placeholder="ALT"
                                         style={{ color: '#fff', paddingRight: '22px' }}
                                     />
-                                    {altCode && (
+                                    {altCode && altCode.trim() !== '' && (
                                         <span 
                                             style={{ 
                                                 position: 'absolute', 
