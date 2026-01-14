@@ -1,15 +1,12 @@
 import { useState, useEffect } from 'react';
 import { getAllUsers, renewUserToken, deleteUser, deleteToken } from '../utils/adminApi';
-import ConfirmModal from './ConfirmModal';
 import './UserManagement.css';
 
-function UserManagement({ refreshTrigger, onTokenRenewed, onShowModal }) {
+function UserManagement({ refreshTrigger, onTokenRenewed, onShowModal, onShowConfirm }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState({});
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [confirmModalConfig, setConfirmModalConfig] = useState({});
 
   useEffect(() => {
     fetchUsers();
@@ -66,17 +63,16 @@ function UserManagement({ refreshTrigger, onTokenRenewed, onShowModal }) {
   };
 
   const handleDeleteUser = async (userId, username) => {
-    setConfirmModalConfig({
-      title: '⚠️ DELETE USER',
-      message: `Are you sure you want to delete user "${username}"?\n\nThis will:\n• Force logout on all devices\n• Cancel any running workflows\n• Prevent username reuse\n\nThis action cannot be undone.`,
-      confirmText: 'DELETE USER',
-      type: 'danger',
-      onConfirm: () => {
-        setShowConfirmModal(false);
-        performDeleteUser(userId, username);
-      }
-    });
-    setShowConfirmModal(true);
+    // Use parent's confirm modal
+    if (onShowConfirm) {
+      onShowConfirm({
+        title: '⚠️ DELETE USER',
+        message: `Are you sure you want to delete user "${username}"?\n\nThis will:\n• Force logout on all devices\n• Cancel any running workflows\n• Prevent username reuse\n\nThis action cannot be undone.`,
+        confirmText: 'DELETE USER',
+        type: 'danger',
+        onConfirm: () => performDeleteUser(userId, username)
+      });
+    }
   };
 
   const performDeleteUser = async (userId, username) => {
@@ -119,17 +115,16 @@ function UserManagement({ refreshTrigger, onTokenRenewed, onShowModal }) {
   };
 
   const handleDeleteToken = async (tokenId, username) => {
-    setConfirmModalConfig({
-      title: '⚠️ DELETE TOKEN',
-      message: `Delete token for user "${username}"?\n\nThis will:\n• Force logout on all devices\n• Cancel any running workflows\n• User cannot login until renewed\n\nAre you sure?`,
-      confirmText: 'DELETE TOKEN',
-      type: 'warning',
-      onConfirm: () => {
-        setShowConfirmModal(false);
-        performDeleteToken(tokenId, username);
-      }
-    });
-    setShowConfirmModal(true);
+    // Use parent's confirm modal
+    if (onShowConfirm) {
+      onShowConfirm({
+        title: '⚠️ DELETE TOKEN',
+        message: `Delete token for user "${username}"?\n\nThis will:\n• Force logout on all devices\n• Cancel any running workflows\n• User cannot login until renewed\n\nAre you sure?`,
+        confirmText: 'DELETE TOKEN',
+        type: 'warning',
+        onConfirm: () => performDeleteToken(tokenId, username)
+      });
+    }
   };
 
   const performDeleteToken = async (tokenId, username) => {
@@ -285,17 +280,6 @@ function UserManagement({ refreshTrigger, onTokenRenewed, onShowModal }) {
           </table>
         </div>
       )}
-
-      {/* Confirmation Modal */}
-      <ConfirmModal
-        isOpen={showConfirmModal}
-        title={confirmModalConfig.title}
-        message={confirmModalConfig.message}
-        confirmText={confirmModalConfig.confirmText}
-        type={confirmModalConfig.type}
-        onConfirm={confirmModalConfig.onConfirm}
-        onCancel={() => setShowConfirmModal(false)}
-      />
     </div>
   );
 }

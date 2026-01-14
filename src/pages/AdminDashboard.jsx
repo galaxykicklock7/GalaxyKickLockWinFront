@@ -4,12 +4,14 @@ import { getAdminSession, logoutAdmin } from '../utils/adminAuth';
 import TokenGenerator from '../components/TokenGenerator';
 import UserManagement from '../components/UserManagement';
 import Modal from '../components/Modal';
+import ConfirmModal from '../components/ConfirmModal';
 import './AdminDashboard.css';
 
 function AdminDashboard() {
   const [adminSession, setAdminSession] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [modal, setModal] = useState({ isOpen: false, title: '', message: '', type: 'alert', onClose: null });
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', confirmText: '', type: 'warning', onConfirm: null });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -53,11 +55,33 @@ function AdminDashboard() {
     });
   };
 
+  const handleShowConfirm = (confirmConfig) => {
+    setConfirmModal({
+      isOpen: true,
+      title: confirmConfig.title,
+      message: confirmConfig.message,
+      confirmText: confirmConfig.confirmText,
+      type: confirmConfig.type || 'warning',
+      onConfirm: confirmConfig.onConfirm
+    });
+  };
+
   const handleCloseModal = () => {
     if (modal.onClose) {
       modal.onClose();
     }
     setModal({ isOpen: false, title: '', message: '', type: 'alert', onClose: null });
+  };
+
+  const handleCloseConfirm = () => {
+    setConfirmModal({ isOpen: false, title: '', message: '', confirmText: '', type: 'warning', onConfirm: null });
+  };
+
+  const handleConfirm = () => {
+    if (confirmModal.onConfirm) {
+      confirmModal.onConfirm();
+    }
+    handleCloseConfirm();
   };
 
   if (!adminSession) {
@@ -86,7 +110,12 @@ function AdminDashboard() {
       <main className="admin-main">
         <div className="admin-container">
           <TokenGenerator onTokenGenerated={handleTokenGenerated} onTokenDeleted={handleTokenDeleted} refreshTrigger={refreshTrigger} />
-          <UserManagement refreshTrigger={refreshTrigger} onTokenRenewed={handleTokenRenewed} onShowModal={handleShowModal} />
+          <UserManagement 
+            refreshTrigger={refreshTrigger} 
+            onTokenRenewed={handleTokenRenewed} 
+            onShowModal={handleShowModal}
+            onShowConfirm={handleShowConfirm}
+          />
         </div>
       </main>
 
@@ -102,6 +131,17 @@ function AdminDashboard() {
         title={modal.title}
         message={modal.message}
         type={modal.type}
+      />
+
+      {/* Global Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        type={confirmModal.type}
+        onConfirm={handleConfirm}
+        onCancel={handleCloseConfirm}
       />
     </div>
   );
