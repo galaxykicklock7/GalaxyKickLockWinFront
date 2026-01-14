@@ -132,7 +132,13 @@ const CoreSystems = ({ config, onConfigChange }) => {
                                     onConfigChange('kickall', false);
                                     onConfigChange('dadplus', false);
                                 }}
-                                title={config.imprisonmode ? 'Uses IMPRISON blacklist' : config.kickmode ? 'Uses KICK blacklist' : 'Uses ALL blacklists (BAN mode)'}
+                                title={
+                                    config.imprisonmode 
+                                        ? 'Uses IMPRISON blacklist (usernames + clans)' 
+                                        : config.kickmode 
+                                            ? 'Uses KICK blacklist (usernames + clans)' 
+                                            : 'Uses ALL blacklists (KICK + IMPRISON usernames + clans)'
+                                }
                             >
                                 BLACKLIST
                             </div>
