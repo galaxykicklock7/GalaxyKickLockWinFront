@@ -3,7 +3,18 @@ import { FaDatabase, FaShieldAlt, FaBan } from 'react-icons/fa';
 import './PremiumLayout.css';
 
 const SecurityDatabase = ({ config, onConfigChange, showToast }) => {
-    const [activeTab, setActiveTab] = useState('IMPRISON'); // 'IMPRISON' or 'KICK'
+    // Auto-switch tab based on protocol selection, but allow manual override
+    const [manualTab, setManualTab] = useState(null);
+    
+    // Determine active tab
+    let activeTab;
+    if (manualTab) {
+        activeTab = manualTab;
+    } else if (config.imprisonmode) {
+        activeTab = 'IMPRISON';
+    } else {
+        activeTab = 'KICK';
+    }
 
     // Validate target names - prevent adding own username or codes
     const handleTargetChange = (field, value) => {
@@ -56,14 +67,14 @@ const SecurityDatabase = ({ config, onConfigChange, showToast }) => {
             <div className="security-tabs">
                 <button
                     className={`sec-tab ${activeTab === 'IMPRISON' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('IMPRISON')}
+                    onClick={() => setManualTab('IMPRISON')}
                 >
                     <FaBan style={{ verticalAlign: 'middle', marginRight: '5px' }} />
                     IMPRISON
                 </button>
                 <button
                     className={`sec-tab ${activeTab === 'KICK' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('KICK')}
+                    onClick={() => setManualTab('KICK')}
                 >
                     <FaDatabase style={{ verticalAlign: 'middle', marginRight: '5px' }} />
                     KICK

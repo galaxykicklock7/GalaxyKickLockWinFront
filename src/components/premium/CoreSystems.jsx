@@ -131,6 +131,7 @@ const CoreSystems = ({ config, onConfigChange }) => {
                                     onConfigChange('kickall', false);
                                     onConfigChange('dadplus', false);
                                 }}
+                                title={config.imprisonmode ? 'Uses IMPRISON blacklist' : config.kickmode ? 'Uses KICK blacklist' : 'Uses ALL blacklists'}
                             >
                                 BLACKLIST
                             </div>
