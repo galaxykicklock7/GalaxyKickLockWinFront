@@ -2,6 +2,10 @@ import { useState } from 'react';
 import { registerUser } from '../utils/auth';
 import './Auth.css';
 
+// Import Discord QR code image
+// Place your Discord QR code image at: src/assets/discord-qr.png
+const discordQR = '/discord-qr.png'; // Will be placed in public folder
+
 function SignUp({ onSuccess, onSwitchToSignIn }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -251,6 +255,51 @@ function SignUp({ onSuccess, onSwitchToSignIn }) {
 
         <div className="form-group">
           <label htmlFor="token">Access Token</label>
+          
+          {/* Discord QR Code Section */}
+          <div className="token-help-section">
+            <div className="discord-qr-container">
+              <div className="qr-header">
+                <span className="qr-icon">💬</span>
+                <h3>Need a Token?</h3>
+              </div>
+              <p className="qr-description">
+                Connect with our admin on Discord to get your access token
+              </p>
+              <div className="qr-code-wrapper">
+                <img 
+                  src={discordQR} 
+                  alt="Discord QR Code - Add galaxykicklock as friend" 
+                  className="discord-qr-image"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextElementSibling.style.display = 'block';
+                  }}
+                />
+                <div className="qr-placeholder" style={{ display: 'none' }}>
+                  <div className="qr-placeholder-content">
+                    <span className="qr-placeholder-icon">📱</span>
+                    <p>Scan QR Code to add<br/><strong>galaxykicklock</strong><br/>on Discord</p>
+                  </div>
+                </div>
+              </div>
+              <div className="qr-instructions">
+                <p className="qr-step">
+                  <span className="step-number">1</span>
+                  Scan QR code with Discord app
+                </p>
+                <p className="qr-step">
+                  <span className="step-number">2</span>
+                  Add <strong>galaxykicklock</strong> as friend
+                </p>
+                <p className="qr-step">
+                  <span className="step-number">3</span>
+                  Request your access token
+                </p>
+              </div>
+            </div>
+          </div>
+
           <input
             type="text"
             id="token"
