@@ -1,4 +1,4 @@
-// GitHub API utilities for workflow management
+// Workflow management utilities
 
 const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN;
 const GITHUB_OWNER = import.meta.env.VITE_GITHUB_OWNER;
@@ -24,7 +24,7 @@ const generateUserSubdomain = (username) => {
 };
 
 /**
- * Trigger GitHub Actions workflow
+ * Trigger workflow deployment
  * @param {string} username - The logged-in username
  * @returns {Promise<{success: boolean, run_id?: number, error?: string, subdomain?: string}>}
  */
@@ -32,10 +32,10 @@ export const triggerWorkflow = async (username) => {
   try {
     // Validate configuration
     if (!GITHUB_TOKEN) {
-      throw new Error('GitHub token not configured. Please check your .env file.');
+      throw new Error('System configuration error. Please contact support.');
     }
     if (!GITHUB_OWNER || !GITHUB_REPO || !WORKFLOW_FILE) {
-      throw new Error('GitHub repository configuration missing. Please check your .env file.');
+      throw new Error('System configuration error. Please contact support.');
     }
 
     if (!username) {
@@ -69,14 +69,14 @@ export const triggerWorkflow = async (username) => {
       
       // Provide helpful error messages
       if (response.status === 403) {
-        throw new Error('GitHub token lacks required permissions. Please ensure your token has "repo" and "workflow" scopes.');
+        throw new Error('Access denied. Please check your permissions or try again.');
       } else if (response.status === 404) {
-        throw new Error(`Workflow file "${WORKFLOW_FILE}" not found in repository ${GITHUB_OWNER}/${GITHUB_REPO}`);
+        throw new Error('System configuration error. Please contact support.');
       } else if (response.status === 401) {
-        throw new Error('Invalid GitHub token. Please check your token and try again.');
+        throw new Error('Authentication failed. Please try again.');
       }
       
-      throw new Error(errorData.message || `GitHub API error: ${response.status}`);
+      throw new Error(errorData.message || `System error: ${response.status}`);
     }
 
     // Workflow dispatch returns 204 No Content on success
@@ -114,7 +114,7 @@ export const getLatestWorkflowRun = async () => {
     );
 
     if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.status}`);
+      throw new Error(`System error: ${response.status}`);
     }
 
     const data = await response.json();
@@ -143,7 +143,7 @@ export const getWorkflowRunStatus = async (runId) => {
     );
 
     if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.status}`);
+      throw new Error(`System error: ${response.status}`);
     }
 
     const data = await response.json();
@@ -180,7 +180,7 @@ export const getWorkflowRunJobs = async (runId) => {
     );
 
     if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.status}`);
+      throw new Error(`System error: ${response.status}`);
     }
 
     const data = await response.json();
@@ -272,7 +272,7 @@ export const getLatestRunningWorkflowId = async () => {
     );
 
     if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.status}`);
+      throw new Error(`System error: ${response.status}`);
     }
 
     const data = await response.json();
