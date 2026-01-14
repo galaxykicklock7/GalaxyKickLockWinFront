@@ -6,7 +6,7 @@ import './Auth.css';
 // Place your Discord QR code image at: src/assets/discord-qr.png
 const discordQR = '/discord-qr.png'; // Will be placed in public folder
 
-function SignUp({ onSuccess, onSwitchToSignIn }) {
+function SignUp({ onSuccess, onSwitchToSignIn, onTokenFocus, onOpenQR }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -15,19 +15,6 @@ function SignUp({ onSuccess, onSwitchToSignIn }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
-  const [showQRModal, setShowQRModal] = useState(false);
-  const [hasSeenQR, setHasSeenQR] = useState(false);
-
-  const handleTokenFocus = () => {
-    if (!hasSeenQR) {
-      setShowQRModal(true);
-    }
-  };
-
-  const handleCloseQR = () => {
-    setShowQRModal(false);
-    setHasSeenQR(true);
-  };
 
   // Calculate password strength
   const calculatePasswordStrength = (pwd) => {
@@ -147,23 +134,22 @@ function SignUp({ onSuccess, onSwitchToSignIn }) {
   };
 
   return (
-    <>
-      <div className="auth-form">
-        <h2 className="auth-title">Create Account</h2>
+    <div className="auth-form">
+      <h2 className="auth-title">Create Account</h2>
 
-        {error && (
-          <div className="auth-error">
-            <span className="error-icon">⚠️</span>
-            {error}
-          </div>
-        )}
+      {error && (
+        <div className="auth-error">
+          <span className="error-icon">⚠️</span>
+          {error}
+        </div>
+      )}
 
-        {success && (
-          <div className="auth-success">
-            <span className="success-icon">✓</span>
-            Account created successfully! Redirecting to sign in...
-          </div>
-        )}
+      {success && (
+        <div className="auth-success">
+          <span className="success-icon">✓</span>
+          Account created successfully! Redirecting to sign in...
+        </div>
+      )}
 
       <form onSubmit={handleSubmit}>
         <div className="form-group">
@@ -274,13 +260,13 @@ function SignUp({ onSuccess, onSwitchToSignIn }) {
             id="token"
             value={token}
             onChange={(e) => setToken(e.target.value)}
-            onFocus={handleTokenFocus}
+            onFocus={onTokenFocus}
             placeholder="Enter your access token"
             required
             disabled={loading || success}
           />
           <small className="form-hint">
-            Don't have a token? <button type="button" className="qr-link" onClick={() => setShowQRModal(true)}>Click here to get one</button>
+            Don't have a token? <button type="button" className="qr-link" onClick={onOpenQR}>Click here to get one</button>
           </small>
         </div>
 
@@ -307,83 +293,6 @@ function SignUp({ onSuccess, onSwitchToSignIn }) {
         </p>
       </div>
     </div>
-
-    {/* QR Code Modal - Rendered outside auth-form */}
-    {showQRModal && (
-      <div className="qr-modal-overlay" onClick={handleCloseQR}>
-        <div className="qr-modal-content" onClick={(e) => e.stopPropagation()}>
-          <button className="qr-modal-close" onClick={handleCloseQR}>×</button>
-          
-          <div className="qr-modal-header">
-            <span className="qr-icon">💬</span>
-            <h3>Need a Token?</h3>
-          </div>
-          
-          <p className="qr-modal-description">
-            Connect with our admin on Discord to get your access token
-          </p>
-          
-          <div className="qr-code-wrapper">
-            <img 
-              src="/discord-qr.png" 
-              alt="Discord QR Code - Add galaxykicklock as friend" 
-              className="discord-qr-image"
-              onError={(e) => {
-                e.target.style.display = 'none';
-                e.target.nextElementSibling.style.display = 'flex';
-              }}
-            />
-            <div className="qr-placeholder" style={{ display: 'flex' }}>
-              <div className="qr-placeholder-content">
-                <div className="qr-box">
-                  <div className="qr-corner qr-corner-tl"></div>
-                  <div className="qr-corner qr-corner-tr"></div>
-                  <div className="qr-corner qr-corner-bl"></div>
-                  <div className="qr-corner qr-corner-br"></div>
-                  <div className="qr-pattern">
-                    <div className="qr-dot"></div>
-                    <div className="qr-dot"></div>
-                    <div className="qr-dot"></div>
-                    <div className="qr-dot"></div>
-                    <div className="qr-dot"></div>
-                    <div className="qr-dot"></div>
-                    <div className="qr-dot"></div>
-                    <div className="qr-dot"></div>
-                    <div className="qr-dot"></div>
-                  </div>
-                </div>
-                <p style={{ marginTop: '16px', fontSize: '0.875rem', color: 'rgba(148, 163, 184, 0.9)' }}>
-                  Scan QR Code to add<br/><strong style={{ color: '#60a5fa' }}>galaxykicklock</strong><br/>on Discord
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="qr-instructions">
-            <p className="qr-step">
-              <span className="step-number">1</span>
-              Scan QR code with Discord app
-            </p>
-            <p className="qr-step">
-              <span className="step-number">2</span>
-              Add <strong>galaxykicklock</strong> as friend
-            </p>
-            <p className="qr-step">
-              <span className="step-number">3</span>
-              Request your access token
-            </p>
-          </div>
-          
-          <button 
-            className="qr-modal-button" 
-            onClick={handleCloseQR}
-          >
-            Got it, close
-          </button>
-        </div>
-      </div>
-    )}
-  </>
   );
 }
 
