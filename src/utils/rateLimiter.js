@@ -3,13 +3,19 @@
 
 class RateLimiter {
   constructor() {
+    // Initialize as Maps explicitly
     this.attempts = new Map();
-    this.blocked = new Set();
+    this.blocked = new Map();
   }
 
   // Check if action is allowed
   isAllowed(key, maxAttempts = 5, windowMs = 60000) {
     const now = Date.now();
+    
+    // Ensure blocked is a Map
+    if (!(this.blocked instanceof Map)) {
+      this.blocked = new Map();
+    }
     
     // Check if blocked
     const blockUntil = this.blocked.get(key);
@@ -23,6 +29,11 @@ class RateLimiter {
       this.blocked.delete(key);
     }
 
+    // Ensure attempts is a Map
+    if (!(this.attempts instanceof Map)) {
+      this.attempts = new Map();
+    }
+
     // Get attempt history
     const attemptHistory = this.attempts.get(key) || [];
     
@@ -32,8 +43,8 @@ class RateLimiter {
     // Check if exceeded limit
     if (recentAttempts.length >= maxAttempts) {
       // Block for 5 minutes
-      const blockUntil = now + 300000;
-      this.blocked.set(key, blockUntil);
+      const newBlockUntil = now + 300000;
+      this.blocked.set(key, newBlockUntil);
       return { allowed: false, remainingSeconds: 300 };
     }
 
@@ -42,6 +53,10 @@ class RateLimiter {
 
   // Record an attempt
   recordAttempt(key) {
+    if (!(this.attempts instanceof Map)) {
+      this.attempts = new Map();
+    }
+    
     const now = Date.now();
     const attemptHistory = this.attempts.get(key) || [];
     attemptHistory.push(now);
@@ -50,14 +65,25 @@ class RateLimiter {
 
   // Reset attempts for a key (on successful login)
   reset(key) {
-    this.attempts.delete(key);
-    this.blocked.delete(key);
+    if (this.attempts instanceof Map) {
+      this.attempts.delete(key);
+    }
+    if (this.blocked instanceof Map) {
+      this.blocked.delete(key);
+    }
   }
 
   // Clear old data periodically
   cleanup() {
     const now = Date.now();
     const maxAge = 3600000; // 1 hour
+
+    if (!(this.attempts instanceof Map)) {
+      this.attempts = new Map();
+    }
+    if (!(this.blocked instanceof Map)) {
+      this.blocked = new Map();
+    }
 
     // Clean attempts
     for (const [key, attempts] of this.attempts.entries()) {
