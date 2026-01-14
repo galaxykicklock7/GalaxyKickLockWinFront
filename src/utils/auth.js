@@ -301,20 +301,22 @@ export const validateSessionWithBackend = async () => {
       console.warn('Session validation failed:', data?.error || 'Session invalid');
       logoutUser();
       
+      // Check if user was deleted by admin
+      if (data?.user_deleted) {
+        return { valid: false, reason: 'Your account has been removed by admin' };
+      }
+      
       // Check if it's a token revocation
-      if (data?.error && (data.error.includes('revoked') || data.error.includes('deleted'))) {
+      if (data?.token_deleted || data?.token_invalid) {
         return { valid: false, reason: 'Your access has been revoked by admin' };
       }
       
+      // Use custom reason if provided
+      if (data?.reason) {
+        return { valid: false, reason: data.reason };
+      }
+      
       return { valid: false, reason: 'Session expired' };
-    }
-
-    // Additional check: verify the user's token still exists and is valid
-    // This catches cases where an admin deleted the token
-    if (data.token_deleted || data.token_invalid) {
-      console.warn('Token has been deleted or invalidated by admin');
-      logoutUser();
-      return { valid: false, reason: 'Your access has been revoked by admin' };
     }
 
     return { valid: true };
