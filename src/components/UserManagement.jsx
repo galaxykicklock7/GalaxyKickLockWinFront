@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getAllUsers, renewUserToken, deleteUser, deleteToken } from '../utils/adminApi';
+import ConfirmModal from './ConfirmModal';
 import './UserManagement.css';
 
 function UserManagement({ refreshTrigger, onTokenRenewed, onShowModal }) {
@@ -7,6 +8,8 @@ function UserManagement({ refreshTrigger, onTokenRenewed, onShowModal }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState({});
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState({});
 
   useEffect(() => {
     fetchUsers();
@@ -63,33 +66,73 @@ function UserManagement({ refreshTrigger, onTokenRenewed, onShowModal }) {
   };
 
   const handleDeleteUser = async (userId, username) => {
-    if (!confirm(`Are you sure you want to delete user "${username}"? This action cannot be undone.`)) {
-      return;
-    }
+    setConfirmModalConfig({
+      title: '⚠️ DELETE USER',
+      message: `Are you sure you want to delete user "${username}"?\n\nThis will:\n• Force logout on all devices\n• Cancel any running workflows\n• Prevent username reuse\n\nThis action cannot be undone.`,
+      confirmText: 'DELETE USER',
+      type: 'danger',
+      onConfirm: () => {
+        setShowConfirmModal(false);
+        performDeleteUser(userId, username);
+      }
+    });
+    setShowConfirmModal(true);
+  };
 
+  const performDeleteUser = async (userId, username) => {
     setActionLoading(prev => ({ ...prev, [`delete-user-${userId}`]: true }));
 
     try {
       const result = await deleteUser(userId);
 
       if (result.success) {
-        alert('User deleted successfully!');
-        await fetchUsers(false);
+        if (onShowModal) {
+          onShowModal({
+            title: 'User Deleted',
+            message: `User "${username}" has been deleted successfully!\n\nSessions invalidated: ${result.sessions_invalidated || 0}`,
+            type: 'alert',
+            onClose: async () => {
+              await fetchUsers(false);
+            }
+          });
+        }
       } else {
-        alert(`Error: ${result.error}`);
+        if (onShowModal) {
+          onShowModal({
+            title: 'Error',
+            message: `Failed to delete user: ${result.error}`,
+            type: 'alert'
+          });
+        }
       }
     } catch (err) {
-      alert('Failed to delete user');
+      if (onShowModal) {
+        onShowModal({
+          title: 'Error',
+          message: 'Failed to delete user',
+          type: 'alert'
+        });
+      }
     } finally {
       setActionLoading(prev => ({ ...prev, [`delete-user-${userId}`]: false }));
     }
   };
 
   const handleDeleteToken = async (tokenId, username) => {
-    if (!confirm(`⚠️ WARNING: You are about to delete the token for user "${username}".\n\nDeleting this token will:\n• Prevent "${username}" from logging in\n• Enable the renewal option for this user\n• User will need a new token to access the system\n\nAre you sure you want to delete this token?`)) {
-      return;
-    }
+    setConfirmModalConfig({
+      title: '⚠️ DELETE TOKEN',
+      message: `Delete token for user "${username}"?\n\nThis will:\n• Force logout on all devices\n• Cancel any running workflows\n• User cannot login until renewed\n\nAre you sure?`,
+      confirmText: 'DELETE TOKEN',
+      type: 'warning',
+      onConfirm: () => {
+        setShowConfirmModal(false);
+        performDeleteToken(tokenId, username);
+      }
+    });
+    setShowConfirmModal(true);
+  };
 
+  const performDeleteToken = async (tokenId, username) => {
     setActionLoading(prev => ({ ...prev, [`delete-token-${tokenId}`]: true }));
 
     try {
@@ -98,8 +141,8 @@ function UserManagement({ refreshTrigger, onTokenRenewed, onShowModal }) {
       if (result.success) {
         if (onShowModal) {
           onShowModal({
-            title: 'Token Deleted Successfully',
-            message: 'Token deleted successfully! The user can no longer log in with this token.',
+            title: 'Token Deleted',
+            message: `Token deleted for "${username}"!\n\nSessions invalidated: ${result.sessions_invalidated || 0}\n\nUser can no longer login.`,
             type: 'alert',
             onClose: async () => {
               await fetchUsers(false);
@@ -107,10 +150,22 @@ function UserManagement({ refreshTrigger, onTokenRenewed, onShowModal }) {
           });
         }
       } else {
-        alert(`Error: ${result.error}`);
+        if (onShowModal) {
+          onShowModal({
+            title: 'Error',
+            message: `Failed to delete token: ${result.error}`,
+            type: 'alert'
+          });
+        }
       }
     } catch (err) {
-      alert('Failed to delete token');
+      if (onShowModal) {
+        onShowModal({
+          title: 'Error',
+          message: 'Failed to delete token',
+          type: 'alert'
+        });
+      }
     } finally {
       setActionLoading(prev => ({ ...prev, [`delete-token-${tokenId}`]: false }));
     }
@@ -227,6 +282,17 @@ function UserManagement({ refreshTrigger, onTokenRenewed, onShowModal }) {
           </table>
         </div>
       )}
+
+      {/* Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        title={confirmModalConfig.title}
+        message={confirmModalConfig.message}
+        confirmText={confirmModalConfig.confirmText}
+        type={confirmModalConfig.type}
+        onConfirm={confirmModalConfig.onConfirm}
+        onCancel={() => setShowConfirmModal(false)}
+      />
     </div>
   );
 }

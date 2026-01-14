@@ -64,8 +64,8 @@ CREATE TABLE IF NOT EXISTS public.users (
   is_active BOOLEAN DEFAULT true,
   
   -- Constraints
-  CONSTRAINT username_length CHECK (char_length(username) >= 3 AND char_length(username) <= 50),
-  CONSTRAINT username_format CHECK (username ~ '^[a-zA-Z0-9_-]+$')
+  CONSTRAINT username_length CHECK (char_length(username) >= 3 AND char_length(username) <= 200),
+  CONSTRAINT username_format CHECK (username ~ '^([a-zA-Z0-9_-]+|DELETED_[a-zA-Z0-9_-]+_[0-9]+)$')
 );
 
 -- Create user_sessions table for session management
