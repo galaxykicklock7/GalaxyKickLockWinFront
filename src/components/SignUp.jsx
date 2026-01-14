@@ -311,7 +311,7 @@ function SignUp({ onSuccess, onSwitchToSignIn }) {
             
             <div className="qr-code-wrapper">
               <img 
-                src="https://i.imgur.com/placeholder.png" 
+                src="/discord-qr.png" 
                 alt="Discord QR Code - Add galaxykicklock as friend" 
                 className="discord-qr-image"
                 onError={(e) => {
