@@ -68,9 +68,10 @@ const CoreSystems = ({ config, onConfigChange }) => {
                 <div className="control-section">
                     <span className="section-label">KICK PROTOCOLS</span>
                     <div className="kick-grid">
+                        {/* Row 1: Primary Action (KICK, IMPRISON, N/A) - Always one selected */}
                         <div className="kick-row">
                             <div
-                                className={`protocol-btn ${config.kickmode && !config.imprisonmode && !config.modena ? 'active' : ''}`}
+                                className={`protocol-btn ${config.kickmode ? 'active' : ''}`}
                                 onClick={() => {
                                     onConfigChange('kickmode', true);
                                     onConfigChange('imprisonmode', false);
@@ -101,20 +102,14 @@ const CoreSystems = ({ config, onConfigChange }) => {
                             </div>
                         </div>
 
+                        {/* Row 2: Target Modifier (NONE, ALL, BLACKLIST, DAD+) - Always one selected */}
                         <div className="kick-row four-col">
                             <div
                                 className={`protocol-btn ${!config.kickall && !config.kickbybl && !config.dadplus ? 'active' : ''}`}
                                 onClick={() => {
-                                    console.log('🚫 NONE clicked - Disabling ALL actions (kick modes + blacklists)');
-                                    // Clear ALL kick modes
                                     onConfigChange('kickall', false);
                                     onConfigChange('kickbybl', false);
                                     onConfigChange('dadplus', false);
-                                    // Clear imprison mode flag
-                                    onConfigChange('imprisonmode', false);
-                                    // Clear blacklists to prevent attack mode from having targets
-                                    onConfigChange('blacklist', '');
-                                    onConfigChange('gangblacklist', '');
                                 }}
                             >
                                 NONE
@@ -132,7 +127,6 @@ const CoreSystems = ({ config, onConfigChange }) => {
                             <div
                                 className={`protocol-btn ${config.kickbybl ? 'active' : ''}`}
                                 onClick={() => {
-                                    console.log('📋 BLACKLIST clicked - Setting: kickbybl=true');
                                     onConfigChange('kickbybl', true);
                                     onConfigChange('kickall', false);
                                     onConfigChange('dadplus', false);
@@ -143,7 +137,6 @@ const CoreSystems = ({ config, onConfigChange }) => {
                             <div
                                 className={`protocol-btn ${config.dadplus ? 'active' : ''}`}
                                 onClick={() => {
-                                    console.log('👨 DAD+ clicked - Setting: dadplus=true');
                                     onConfigChange('dadplus', true);
                                     onConfigChange('kickall', false);
                                     onConfigChange('kickbybl', false);
