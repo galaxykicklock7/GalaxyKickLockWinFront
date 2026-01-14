@@ -174,60 +174,56 @@ function UserApp() {
       localStorage.setItem('activeTabId', tabId);
     }
 
-    // Save config before page unload AND cleanup workflows
-    const handleBeforeUnload = async (e) => {
+    // Save config before page unload AND show warning
+    const handleBeforeUnload = (e) => {
       if (window.configUpdateTimer) {
         clearTimeout(window.configUpdateTimer);
       }
       // Save current config immediately
       localStorage.setItem('galaxyKickLockConfig', JSON.stringify(config));
       
-      // CRITICAL: Cancel workflow if user closes tab/browser
+      // CRITICAL: Check if system is active before showing warning
       const isDeployed = localStorage.getItem('deploymentStatus') === 'deployed';
       const workflowRunId = localStorage.getItem('workflowRunId');
       
       if (isDeployed || workflowRunId) {
-        // Show browser warning
+        // Show browser's default warning
+        const message = '⚠️ System is still active. Refreshing will deactivate the system and stop all connections.';
         e.preventDefault();
-        e.returnValue = 'System is still active. Are you sure you want to leave?';
-        
-        // Try to cancel workflow (may not complete if user closes immediately)
-        try {
-          const { cancelWorkflowRun, getLatestRunningWorkflowId } = await import('./utils/github');
-          
-          let runIdToCancel = workflowRunId ? parseInt(workflowRunId) : null;
-          
-          if (!runIdToCancel) {
-            runIdToCancel = await getLatestRunningWorkflowId();
-          }
-          
-          if (runIdToCancel) {
-            // Use sendBeacon for reliable cleanup even if page closes
-            const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN;
-            const GITHUB_OWNER = import.meta.env.VITE_GITHUB_OWNER;
-            const GITHUB_REPO = import.meta.env.VITE_GITHUB_REPO;
-            
-            // Attempt to cancel (best effort)
-            fetch(
-              `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/actions/runs/${runIdToCancel}/cancel`,
-              {
-                method: 'POST',
-                headers: {
-                  'Accept': 'application/vnd.github+json',
-                  'Authorization': `Bearer ${GITHUB_TOKEN}`,
-                  'X-GitHub-Api-Version': '2022-11-28',
-                },
-                keepalive: true // Keep request alive even if page closes
-              }
-            ).catch(() => {});
-          }
-        } catch (err) {
-          console.warn('Failed to cancel workflow on tab close:', err);
-        }
+        e.returnValue = message;
+        return message;
       }
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
+
+    // Handle actual page unload (user confirmed they want to leave)
+    const handleUnload = async () => {
+      const isDeployed = localStorage.getItem('deploymentStatus') === 'deployed';
+      const workflowRunId = localStorage.getItem('workflowRunId');
+      
+      if (isDeployed || workflowRunId) {
+        try {
+          const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN;
+          const GITHUB_OWNER = import.meta.env.VITE_GITHUB_OWNER;
+          const GITHUB_REPO = import.meta.env.VITE_GITHUB_REPO;
+          
+          let runIdToCancel = workflowRunId ? parseInt(workflowRunId) : null;
+          
+          if (runIdToCancel) {
+            // Use sendBeacon for reliable cleanup even if page closes
+            navigator.sendBeacon(
+              `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/actions/runs/${runIdToCancel}/cancel`,
+              JSON.stringify({})
+            );
+          }
+        } catch (err) {
+          console.warn('Failed to cancel workflow on unload:', err);
+        }
+      }
+    };
+
+    window.addEventListener('unload', handleUnload);
 
     // Listen for storage changes
     const handleStorageChange = (e) => {
@@ -273,6 +269,7 @@ function UserApp() {
     // Cleanup
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('unload', handleUnload);
       window.removeEventListener('storage', handleStorageChange);
       
       // Save config on unmount
