@@ -29,7 +29,7 @@ function Modal({ isOpen, onClose, onConfirm, title, message, type = 'confirm' })
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <div className="modal-body">
-          <p className="modal-message">{message}</p>
+          <p className="modal-message" style={{ whiteSpace: 'pre-wrap' }}>{message}</p>
         </div>
         <div className="modal-footer">
           {type === 'confirm' ? (

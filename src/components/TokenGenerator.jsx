@@ -3,7 +3,7 @@ import { generateToken, getTokensByDuration, deleteToken } from '../utils/adminA
 import Modal from './Modal';
 import './TokenGenerator.css';
 
-function TokenGenerator({ onTokenGenerated }) {
+function TokenGenerator({ onTokenGenerated, onTokenDeleted, refreshTrigger }) {
   const [loading, setLoading] = useState(null);
   const [error, setError] = useState('');
   const [tokens3, setTokens3] = useState([]);
@@ -21,6 +21,12 @@ function TokenGenerator({ onTokenGenerated }) {
   useEffect(() => {
     fetchAllTokens();
   }, []);
+
+  useEffect(() => {
+    if (refreshTrigger > 0) {
+      fetchAllTokens();
+    }
+  }, [refreshTrigger]);
 
   const fetchAllTokens = async () => {
     setLoadingTokens(true);
@@ -78,6 +84,10 @@ function TokenGenerator({ onTokenGenerated }) {
         await fetchAllTokens();
         setSuccessMessage('Token deleted successfully!');
         setShowSuccessModal(true);
+        // Notify parent to refresh user management
+        if (onTokenDeleted) {
+          onTokenDeleted();
+        }
       } else {
         setError(result.error);
       }
@@ -92,6 +102,13 @@ function TokenGenerator({ onTokenGenerated }) {
   const openDeleteModal = (token) => {
     setTokenToDelete(token);
     setShowDeleteModal(true);
+  };
+
+  const getDeleteMessage = (token) => {
+    if (token.is_used && token.used_by) {
+      return `⚠️ WARNING: This token is currently being used by user "${token.used_by}".\n\nDeleting this token will:\n• Prevent "${token.used_by}" from logging in\n• Enable the renewal option for this user\n• Permanently remove this token\n\nToken: ${token.token_value}\n\nAre you sure you want to delete this token?`;
+    }
+    return `Are you sure you want to delete this token?\n\nToken: ${token.token_value}`;
   };
 
   const copyToClipboard = (tokenValue) => {
@@ -155,6 +172,11 @@ function TokenGenerator({ onTokenGenerated }) {
                     </button>
                   </div>
                 </div>
+                {token.is_used && token.used_by && (
+                  <div className="token-user-info">
+                    👤 Used by: <strong>{token.used_by}</strong>
+                  </div>
+                )}
                 <div className="token-item-value">{token.token_value}</div>
                 <div className="token-item-footer">
                   <span className="token-item-date">
@@ -197,7 +219,7 @@ function TokenGenerator({ onTokenGenerated }) {
         }}
         onConfirm={handleDeleteToken}
         title="Delete Token"
-        message={`Are you sure you want to delete this token?\n\n${tokenToDelete?.token_value || ''}`}
+        message={tokenToDelete ? getDeleteMessage(tokenToDelete) : ''}
         type="confirm"
       />
 

@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { getAdminSession, logoutAdmin } from '../utils/adminAuth';
 import TokenGenerator from '../components/TokenGenerator';
 import UserManagement from '../components/UserManagement';
+import Modal from '../components/Modal';
 import './AdminDashboard.css';
 
 function AdminDashboard() {
   const [adminSession, setAdminSession] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [modal, setModal] = useState({ isOpen: false, title: '', message: '', type: 'alert', onClose: null });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -29,6 +31,33 @@ function AdminDashboard() {
   const handleTokenGenerated = () => {
     // Refresh user list when new token is generated
     setRefreshTrigger(prev => prev + 1);
+  };
+
+  const handleTokenDeleted = () => {
+    // Refresh user list when token is deleted
+    setRefreshTrigger(prev => prev + 1);
+  };
+
+  const handleTokenRenewed = () => {
+    // Refresh token generator when token is renewed
+    setRefreshTrigger(prev => prev + 1);
+  };
+
+  const handleShowModal = (modalConfig) => {
+    setModal({
+      isOpen: true,
+      title: modalConfig.title,
+      message: modalConfig.message,
+      type: modalConfig.type || 'alert',
+      onClose: modalConfig.onClose
+    });
+  };
+
+  const handleCloseModal = () => {
+    if (modal.onClose) {
+      modal.onClose();
+    }
+    setModal({ isOpen: false, title: '', message: '', type: 'alert', onClose: null });
   };
 
   if (!adminSession) {
@@ -56,8 +85,8 @@ function AdminDashboard() {
       {/* Main Content */}
       <main className="admin-main">
         <div className="admin-container">
-          <TokenGenerator onTokenGenerated={handleTokenGenerated} />
-          <UserManagement refreshTrigger={refreshTrigger} />
+          <TokenGenerator onTokenGenerated={handleTokenGenerated} onTokenDeleted={handleTokenDeleted} refreshTrigger={refreshTrigger} />
+          <UserManagement refreshTrigger={refreshTrigger} onTokenRenewed={handleTokenRenewed} onShowModal={handleShowModal} />
         </div>
       </main>
 
@@ -65,6 +94,15 @@ function AdminDashboard() {
       <footer className="admin-footer">
         <p>© 2025 | Galaxy Kick Lock 2.0 Admin Controller | Created by THALA</p>
       </footer>
+
+      {/* Global Modal */}
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={handleCloseModal}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+      />
     </div>
   );
 }

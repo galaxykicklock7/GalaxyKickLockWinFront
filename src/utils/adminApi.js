@@ -69,7 +69,11 @@ export async function renewUserToken(userId, durationMonths) {
     if (error) throw error;
 
     if (data.success) {
-      return { success: true, data: data };
+      return {
+        success: true,
+        token_value: data.token_value,
+        expiry_date: data.expiry_date
+      };
     } else {
       return { success: false, error: data.error };
     }

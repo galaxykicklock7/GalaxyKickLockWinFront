@@ -105,9 +105,16 @@ const CoreSystems = ({ config, onConfigChange }) => {
                             <div
                                 className={`protocol-btn ${!config.kickall && !config.kickbybl && !config.dadplus ? 'active' : ''}`}
                                 onClick={() => {
+                                    console.log('🚫 NONE clicked - Disabling ALL actions (kick modes + blacklists)');
+                                    // Clear ALL kick modes
                                     onConfigChange('kickall', false);
                                     onConfigChange('kickbybl', false);
                                     onConfigChange('dadplus', false);
+                                    // Clear imprison mode flag
+                                    onConfigChange('imprisonmode', false);
+                                    // Clear blacklists to prevent attack mode from having targets
+                                    onConfigChange('blacklist', '');
+                                    onConfigChange('gangblacklist', '');
                                 }}
                             >
                                 NONE
@@ -125,6 +132,7 @@ const CoreSystems = ({ config, onConfigChange }) => {
                             <div
                                 className={`protocol-btn ${config.kickbybl ? 'active' : ''}`}
                                 onClick={() => {
+                                    console.log('📋 BLACKLIST clicked - Setting: kickbybl=true');
                                     onConfigChange('kickbybl', true);
                                     onConfigChange('kickall', false);
                                     onConfigChange('dadplus', false);
@@ -135,6 +143,7 @@ const CoreSystems = ({ config, onConfigChange }) => {
                             <div
                                 className={`protocol-btn ${config.dadplus ? 'active' : ''}`}
                                 onClick={() => {
+                                    console.log('👨 DAD+ clicked - Setting: dadplus=true');
                                     onConfigChange('dadplus', true);
                                     onConfigChange('kickall', false);
                                     onConfigChange('kickbybl', false);

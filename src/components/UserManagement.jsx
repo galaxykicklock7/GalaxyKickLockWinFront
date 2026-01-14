@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { getAllUsers, renewUserToken, deleteUser, deleteToken } from '../utils/adminApi';
 import './UserManagement.css';
 
-function UserManagement({ refreshTrigger }) {
+function UserManagement({ refreshTrigger, onTokenRenewed, onShowModal }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -12,8 +12,8 @@ function UserManagement({ refreshTrigger }) {
     fetchUsers();
   }, [refreshTrigger]);
 
-  const fetchUsers = async () => {
-    setLoading(true);
+  const fetchUsers = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     setError('');
 
     try {
@@ -27,26 +27,38 @@ function UserManagement({ refreshTrigger }) {
     } catch (err) {
       setError('Failed to fetch users');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
   const handleRenewToken = async (userId, months) => {
-    setActionLoading({ ...actionLoading, [`renew-${userId}`]: true });
+    setActionLoading(prev => ({ ...prev, [`renew-${userId}`]: true }));
 
     try {
       const result = await renewUserToken(userId, months);
 
       if (result.success) {
-        alert(`Token renewed successfully for ${months} months!`);
-        fetchUsers();
+        if (onShowModal) {
+          onShowModal({
+            title: 'Token Renewed Successfully',
+            message: `Token renewed successfully for ${months} months!\n\nNew Token:\n${result.token_value}\n\nThis token has been added to the ${months}-month token list.`,
+            type: 'alert',
+            onClose: async () => {
+              await fetchUsers(false);
+              // Notify parent to refresh token generator
+              if (onTokenRenewed) {
+                onTokenRenewed();
+              }
+            }
+          });
+        }
       } else {
         alert(`Error: ${result.error}`);
       }
     } catch (err) {
       alert('Failed to renew token');
     } finally {
-      setActionLoading({ ...actionLoading, [`renew-${userId}`]: false });
+      setActionLoading(prev => ({ ...prev, [`renew-${userId}`]: false }));
     }
   };
 
@@ -55,44 +67,52 @@ function UserManagement({ refreshTrigger }) {
       return;
     }
 
-    setActionLoading({ ...actionLoading, [`delete-user-${userId}`]: true });
+    setActionLoading(prev => ({ ...prev, [`delete-user-${userId}`]: true }));
 
     try {
       const result = await deleteUser(userId);
 
       if (result.success) {
         alert('User deleted successfully!');
-        fetchUsers();
+        await fetchUsers(false);
       } else {
         alert(`Error: ${result.error}`);
       }
     } catch (err) {
       alert('Failed to delete user');
     } finally {
-      setActionLoading({ ...actionLoading, [`delete-user-${userId}`]: false });
+      setActionLoading(prev => ({ ...prev, [`delete-user-${userId}`]: false }));
     }
   };
 
   const handleDeleteToken = async (tokenId, username) => {
-    if (!confirm(`Are you sure you want to delete the token for user "${username}"?`)) {
+    if (!confirm(`⚠️ WARNING: You are about to delete the token for user "${username}".\n\nDeleting this token will:\n• Prevent "${username}" from logging in\n• Enable the renewal option for this user\n• User will need a new token to access the system\n\nAre you sure you want to delete this token?`)) {
       return;
     }
 
-    setActionLoading({ ...actionLoading, [`delete-token-${tokenId}`]: true });
+    setActionLoading(prev => ({ ...prev, [`delete-token-${tokenId}`]: true }));
 
     try {
       const result = await deleteToken(tokenId);
 
       if (result.success) {
-        alert('Token deleted successfully!');
-        fetchUsers();
+        if (onShowModal) {
+          onShowModal({
+            title: 'Token Deleted Successfully',
+            message: 'Token deleted successfully! The user can no longer log in with this token.',
+            type: 'alert',
+            onClose: async () => {
+              await fetchUsers(false);
+            }
+          });
+        }
       } else {
         alert(`Error: ${result.error}`);
       }
     } catch (err) {
       alert('Failed to delete token');
     } finally {
-      setActionLoading({ ...actionLoading, [`delete-token-${tokenId}`]: false });
+      setActionLoading(prev => ({ ...prev, [`delete-token-${tokenId}`]: false }));
     }
   };
 
@@ -172,14 +192,16 @@ function UserManagement({ refreshTrigger }) {
                             e.target.value = '';
                           }
                         }}
-                        disabled={actionLoading[`renew-${user.id}`]}
+                        disabled={actionLoading[`renew-${user.id}`] || (user.token_id && !isExpired(user.token_expiry_date))}
                       >
-                        <option value="">Renew Token</option>
+                        <option value="">
+                          {!user.token_id || isExpired(user.token_expiry_date) ? 'Renew Token' : 'Token Active'}
+                        </option>
                         <option value="3">3 Months</option>
                         <option value="6">6 Months</option>
                         <option value="12">1 Year</option>
                       </select>
-                      
+
                       {user.token_id && (
                         <button
                           className="action-btn delete-token-btn"
@@ -189,7 +211,7 @@ function UserManagement({ refreshTrigger }) {
                           {actionLoading[`delete-token-${user.token_id}`] ? '...' : 'Delete Token'}
                         </button>
                       )}
-                      
+
                       <button
                         className="action-btn delete-user-btn"
                         onClick={() => handleDeleteUser(user.id, user.username)}

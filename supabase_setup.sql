@@ -354,7 +354,8 @@ BEGIN
       'created_at', t.created_at,
       'expiry_date', t.expiry_date,
       'is_active', t.is_active,
-      'is_used', EXISTS(SELECT 1 FROM public.users u WHERE u.token_id = t.id)
+      'is_used', EXISTS(SELECT 1 FROM public.users u WHERE u.token_id = t.id),
+      'used_by', (SELECT u.username FROM public.users u WHERE u.token_id = t.id LIMIT 1)
     ) as token_data
     FROM public.tokens t
     WHERE t.duration_months = p_duration_months
@@ -436,12 +437,24 @@ CREATE OR REPLACE FUNCTION public.delete_token(
   p_token_id UUID
 )
 RETURNS JSON AS $$
+DECLARE
+  v_affected_count INTEGER;
 BEGIN
+  -- First, invalidate all active sessions for users with this token
+  -- This forces immediate logout
+  UPDATE public.user_sessions
+  SET is_active = false
+  WHERE user_id IN (
+    SELECT id FROM public.users WHERE token_id = p_token_id
+  ) AND is_active = true;
+  
+  GET DIAGNOSTICS v_affected_count = ROW_COUNT;
+  
   -- Remove token reference from users
   UPDATE public.users
   SET token_id = NULL,
       subscription_months = NULL,
-      token_expiry_date = NULL
+      token_expiry_date = NOW() - INTERVAL '1 day'  -- Set to yesterday (expired, enables renewal)
   WHERE token_id = p_token_id;
   
   -- Delete token
@@ -451,7 +464,11 @@ BEGIN
     RETURN json_build_object('success', false, 'error', 'Token not found');
   END IF;
   
-  RETURN json_build_object('success', true, 'message', 'Token deleted successfully');
+  RETURN json_build_object(
+    'success', true, 
+    'message', 'Token deleted successfully',
+    'sessions_invalidated', v_affected_count
+  );
   
 EXCEPTION
   WHEN OTHERS THEN
@@ -608,18 +625,20 @@ CREATE OR REPLACE FUNCTION public.validate_session(
 RETURNS JSON AS $$
 DECLARE
   v_session RECORD;
+  v_user RECORD;
+  v_token RECORD;
 BEGIN
-  SELECT s.id, s.user_id, s.expires_at, s.is_active, u.is_active as user_active
+  -- Get session
+  SELECT s.id, s.user_id, s.expires_at, s.is_active
   INTO v_session
   FROM public.user_sessions s
-  JOIN public.users u ON s.user_id = u.id
   WHERE s.session_token = p_session_token;
   
   IF NOT FOUND THEN
     RETURN json_build_object('success', false, 'valid', false, 'error', 'Session not found');
   END IF;
   
-  IF NOT v_session.is_active OR NOT v_session.user_active THEN
+  IF NOT v_session.is_active THEN
     RETURN json_build_object('success', false, 'valid', false, 'error', 'Session inactive');
   END IF;
   
@@ -627,6 +646,61 @@ BEGIN
     -- Deactivate expired session
     UPDATE public.user_sessions SET is_active = false WHERE id = v_session.id;
     RETURN json_build_object('success', false, 'valid', false, 'error', 'Session expired');
+  END IF;
+  
+  -- Get user
+  SELECT id, token_id, token_expiry_date, is_active
+  INTO v_user
+  FROM public.users
+  WHERE id = v_session.user_id;
+  
+  IF NOT FOUND THEN
+    RETURN json_build_object('success', false, 'valid', false, 'error', 'User not found');
+  END IF;
+  
+  IF NOT v_user.is_active THEN
+    RETURN json_build_object('success', false, 'valid', false, 'error', 'User inactive');
+  END IF;
+  
+  -- Check if user's token still exists (catches admin token deletion)
+  IF v_user.token_id IS NOT NULL THEN
+    SELECT id, expiry_date, is_active
+    INTO v_token
+    FROM public.tokens
+    WHERE id = v_user.token_id;
+    
+    IF NOT FOUND THEN
+      -- Token was deleted by admin, invalidate session
+      UPDATE public.user_sessions SET is_active = false WHERE id = v_session.id;
+      RETURN json_build_object(
+        'success', false, 
+        'valid', false, 
+        'token_deleted', true,
+        'error', 'Your access token has been revoked'
+      );
+    END IF;
+    
+    -- Check if token is expired
+    IF v_token.expiry_date < NOW() THEN
+      UPDATE public.user_sessions SET is_active = false WHERE id = v_session.id;
+      RETURN json_build_object(
+        'success', false,
+        'valid', false,
+        'token_invalid', true,
+        'error', 'Token has expired'
+      );
+    END IF;
+    
+    -- Check if token is inactive
+    IF NOT v_token.is_active THEN
+      UPDATE public.user_sessions SET is_active = false WHERE id = v_session.id;
+      RETURN json_build_object(
+        'success', false,
+        'valid', false,
+        'token_invalid', true,
+        'error', 'Token is inactive'
+      );
+    END IF;
   END IF;
   
   -- Update last activity

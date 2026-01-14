@@ -48,7 +48,7 @@ export const registerUser = async (username, password, confirmPassword, token) =
 
     if (error) {
       console.error('Registration error:', error);
-      
+
       // Provide user-friendly error messages
       if (error.message.includes('duplicate') || error.message.includes('already exists')) {
         return { success: false, error: 'Username already taken. Please choose another.' };
@@ -56,14 +56,14 @@ export const registerUser = async (username, password, confirmPassword, token) =
       if (error.message.includes('token')) {
         return { success: false, error: 'Invalid or expired access token' };
       }
-      
+
       return { success: false, error: 'Registration failed. Please try again.' };
     }
 
     if (!data.success) {
       // Handle specific error messages from the database function
       const errorMsg = data.error || 'Registration failed';
-      
+
       if (errorMsg.includes('already exists') || errorMsg.includes('duplicate')) {
         return { success: false, error: 'Username already taken. Please choose another.' };
       }
@@ -76,18 +76,18 @@ export const registerUser = async (username, password, confirmPassword, token) =
       if (errorMsg.includes('expired')) {
         return { success: false, error: 'Access token has expired' };
       }
-      
+
       return { success: false, error: errorMsg };
     }
 
     return { success: true, data };
   } catch (err) {
     console.error('Registration exception:', err);
-    
+
     if (err.message.includes('fetch') || err.message.includes('network')) {
       return { success: false, error: 'Unable to connect to server. Please check your internet connection.' };
     }
-    
+
     return { success: false, error: 'An unexpected error occurred. Please try again.' };
   }
 };
@@ -119,14 +119,14 @@ export const loginUser = async (username, password) => {
 
     if (error) {
       console.error('Login error:', error);
-      
+
       // Don't reveal specific details for security
       return { success: false, error: 'Invalid username or password' };
     }
 
     if (!data || !data.success) {
       const errorMsg = data?.error || 'Login failed';
-      
+
       // Provide user-friendly messages without revealing too much
       if (errorMsg.includes('not found') || errorMsg.includes('invalid')) {
         return { success: false, error: 'Invalid username or password' };
@@ -137,7 +137,7 @@ export const loginUser = async (username, password) => {
       if (errorMsg.includes('inactive')) {
         return { success: false, error: 'Account is inactive. Please contact support.' };
       }
-      
+
       return { success: false, error: 'Login failed. Please try again.' };
     }
 
@@ -164,11 +164,11 @@ export const loginUser = async (username, password) => {
     return { success: true, data: session };
   } catch (err) {
     console.error('Login exception:', err);
-    
+
     if (err.message.includes('fetch') || err.message.includes('network')) {
       return { success: false, error: 'Unable to connect to server. Please check your internet connection.' };
     }
-    
+
     return { success: false, error: 'An unexpected error occurred. Please try again.' };
   }
 };
@@ -292,18 +292,29 @@ export const validateSessionWithBackend = async () => {
 
     if (error) {
       console.error('Session validation error:', error);
+      logoutUser();
       return { valid: false, error: error.message };
     }
 
     if (!data || !data.valid) {
       // Session is invalid, clear local storage
+      console.warn('Session validation failed:', data?.error || 'Session invalid');
       logoutUser();
       return { valid: false, error: data?.error || 'Session invalid' };
+    }
+
+    // Additional check: verify the user's token still exists and is valid
+    // This catches cases where an admin deleted the token
+    if (data.token_deleted || data.token_invalid) {
+      console.warn('Token has been deleted or invalidated by admin');
+      logoutUser();
+      return { valid: false, error: 'Your access token has been revoked. Please contact support.' };
     }
 
     return { valid: true };
   } catch (err) {
     console.error('Session validation exception:', err);
+    logoutUser();
     return { valid: false, error: err.message };
   }
 };

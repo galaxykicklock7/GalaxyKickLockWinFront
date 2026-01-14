@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useBackendStatus } from './hooks/useBackendStatus';
+import { useWorkflowMonitor } from './hooks/useWorkflowMonitor';
 import { isAuthenticated, logoutUser, getSession } from './utils/auth';
 import { isAdminAuthenticated } from './utils/adminAuth';
 import LandingPage from './pages/LandingPage';
@@ -16,20 +17,17 @@ import DataStreams from './components/premium/DataStreams';
 import './components/premium/PremiumLayout.css';
 
 import Toast from './components/Toast';
+import ConfirmModal from './components/ConfirmModal';
 // import './App.css'; // Disabled in favor of PremiumLayout
 
 // Protected Route Component for Admin
 function ProtectedAdminRoute({ children }) {
   const isAuth = isAdminAuthenticated();
-  console.log('ProtectedAdminRoute - isAuth:', isAuth);
-  console.log('ProtectedAdminRoute - localStorage:', localStorage.getItem('adminSession'));
 
   if (!isAuth) {
-    console.log('Not authenticated, redirecting to /admin');
     return <Navigate to="/admin" replace />;
   }
 
-  console.log('Authenticated, rendering AdminDashboard');
   return children;
 }
 
@@ -57,6 +55,8 @@ function UserApp() {
   const [currentUser, setCurrentUser] = useState(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [toast, setToast] = useState(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [logoutWarningMessage, setLogoutWarningMessage] = useState('');
   
   // Use ref to track if we've already logged out to prevent spam
   const hasLoggedOutRef = useRef(false);
@@ -68,7 +68,6 @@ function UserApp() {
       try {
         return JSON.parse(savedConfig);
       } catch (err) {
-        console.error('Failed to parse saved config:', err);
       }
     }
     // Return default config if nothing saved
@@ -142,6 +141,9 @@ function UserApp() {
     setToast({ message, type });
   };
 
+  // Monitor GitHub workflow status - auto-reset if backend stops
+  const { isMonitoring, startMonitoring, stopMonitoring } = useWorkflowMonitor(showToast);
+
   // Check authentication on mount
   useEffect(() => {
     const checkAuth = () => {
@@ -172,6 +174,17 @@ function UserApp() {
       localStorage.setItem('activeTabId', tabId);
     }
 
+    // Save config before page unload
+    const handleBeforeUnload = () => {
+      if (window.configUpdateTimer) {
+        clearTimeout(window.configUpdateTimer);
+      }
+      // Save current config immediately
+      localStorage.setItem('galaxyKickLockConfig', JSON.stringify(config));
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     // Listen for storage changes
     const handleStorageChange = (e) => {
       // Prevent multiple logouts
@@ -180,7 +193,6 @@ function UserApp() {
       if (e.key === 'galaxyKickLockSession') {
         if (!e.newValue) {
           // Session was removed
-          console.log('Session removed in another tab');
           hasLoggedOutRef.current = true;
           setAuthenticated(false);
           setCurrentUser(null);
@@ -190,23 +202,20 @@ function UserApp() {
           try {
             const oldSession = JSON.parse(e.oldValue);
             const newSession = JSON.parse(e.newValue);
-            
+
             if (oldSession.session_id !== newSession.session_id) {
-              console.log('New login detected');
               hasLoggedOutRef.current = true;
               setAuthenticated(false);
               setCurrentUser(null);
               showToast('You have been logged in on another device/tab', 'info');
             }
           } catch (err) {
-            console.error('Error parsing session:', err);
           }
         }
       } else if (e.key === 'activeTabId' && e.newValue) {
         // Another tab claimed to be active
         const currentTabId = sessionStorage.getItem('tabId');
         if (e.newValue !== currentTabId) {
-          console.log('Another tab claimed the session');
           hasLoggedOutRef.current = true;
           setAuthenticated(false);
           setCurrentUser(null);
@@ -219,7 +228,14 @@ function UserApp() {
 
     // Cleanup
     return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('storage', handleStorageChange);
+      
+      // Save config on unmount
+      if (window.configUpdateTimer) {
+        clearTimeout(window.configUpdateTimer);
+      }
+      localStorage.setItem('galaxyKickLockConfig', JSON.stringify(config));
       
       // Clear active tab if this was it
       const currentTabId = sessionStorage.getItem('tabId');
@@ -228,7 +244,7 @@ function UserApp() {
         localStorage.removeItem('activeTabId');
       }
     };
-  }, []); // Run only once on mount
+  }, [config]); // Add config as dependency
 
   // Periodic session validation + visibility check
   useEffect(() => {
@@ -269,7 +285,6 @@ function UserApp() {
     // Also check when tab becomes visible (user switches back to this tab)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log('Tab became visible, validating session...');
         validateSession();
       }
     };
@@ -283,7 +298,6 @@ function UserApp() {
   }, [authenticated, disconnect]);
 
   const handleLoginSuccess = (userData) => {
-    console.log('handleLoginSuccess called with:', userData);
     setToast(null); // Clear any existing toasts
     
     // Reset logout flag
@@ -297,19 +311,67 @@ function UserApp() {
     setCurrentUser(userData);
     setAuthenticated(true);
     showToast(`Welcome back, ${userData.username}!`, 'success');
-    console.log('Authentication state set to true');
   };
 
   const handleLogout = async () => {
-    showToast('Logged out successfully', 'success');
+    // Check if user is still connected or deployed
+    const isDeployed = localStorage.getItem('deploymentStatus') === 'deployed';
+    
+    if (connected || isDeployed) {
+      // Show warning modal - user needs to clean up first
+      const issues = [];
+      if (connected) issues.push('• Still CONNECTED to system');
+      if (isDeployed) issues.push('• Deployment still ACTIVE');
+      
+      const message = `${issues.join('\n')}\n\nRecommended steps before logout:\n1. Click DISCONNECT (if connected)\n2. Click DEACTIVATE (if deployed)\n3. Then logout\n\nForce logout will automatically clean up, but may leave resources running.`;
+      
+      setLogoutWarningMessage(message);
+      setShowLogoutConfirm(true);
+      return;
+    }
+    
+    // If nothing is active, logout directly
+    performLogout();
+  };
 
-    // Delay redirect to allow user to read the toast message
-    setTimeout(async () => {
-      await logoutUser();
-      setCurrentUser(null);
-      setAuthenticated(false);
-      disconnect();
-    }, 2000);
+  const performLogout = async () => {
+    setShowLogoutConfirm(false);
+    showToast('Logging out...', 'info');
+
+    // Force cleanup
+    if (connected) {
+      try {
+        await disconnect();
+      } catch (err) {
+      }
+    }
+
+    // Clear deployment state
+    const isDeployed = localStorage.getItem('deploymentStatus') === 'deployed';
+    if (isDeployed) {
+      localStorage.removeItem('deploymentStatus');
+      localStorage.removeItem('workflowRunId');
+      localStorage.removeItem('backendSubdomain');
+
+      // Clear backend URL
+      const { clearBackendUrl } = await import('./utils/backendUrl');
+      clearBackendUrl();
+
+      // Stop workflow monitoring
+      stopMonitoring();
+
+      // Emit event to reset UI
+      window.dispatchEvent(new CustomEvent('deploymentStatusChanged', {
+        detail: { status: 'idle' }
+      }));
+    }
+    
+    // Perform logout
+    await logoutUser();
+    setCurrentUser(null);
+    setAuthenticated(false);
+    
+    showToast('Logged out successfully', 'success');
   };
 
   // Show loading while checking authentication
@@ -325,89 +387,47 @@ function UserApp() {
 
   // Show landing page if not authenticated
   if (!authenticated) {
-    console.log('UserApp: Not authenticated, showing LandingPage');
     return <LandingPage onLoginSuccess={handleLoginSuccess} />;
   }
 
-  console.log('UserApp: Authenticated, showing main app');
-
   const handleConfigChange = (key, value) => {
     setConfig(prev => {
+      const newConfig = { ...prev, [key]: value };
+      
       // Validate RC codes for duplicates
       if (key.startsWith('rc') || key === 'kickrc') {
-        const newConfig = { ...prev, [key]: value };
-
-        // Skip validation if value is empty
-        if (!value || value.trim() === '') {
-          // Auto-save to backend immediately (non-blocking)
-          updateConfig(newConfig).then(() => {
-            console.log(`Config updated: ${key} = ${value}`);
-          }).catch(err => {
-            console.error('Failed to update config:', err);
+        if (value && value.trim() !== '') {
+          const allCodes = [];
+          ['rc1', 'rc2', 'rc3', 'rc4', 'rc5', 'rcl1', 'rcl2', 'rcl3', 'rcl4', 'rcl5'].forEach(rcKey => {
+            const codeValue = rcKey === key ? value : newConfig[rcKey];
+            if (codeValue && codeValue.trim() !== '') {
+              allCodes.push(codeValue.toLowerCase());
+            }
           });
-          return newConfig;
-        }
-
-        // Collect all RC codes
-        const allCodes = [];
-
-        // Main RC codes
-        ['rc1', 'rc2', 'rc3', 'rc4', 'rc5'].forEach(rcKey => {
-          const codeValue = rcKey === key ? value : newConfig[rcKey];
-          if (codeValue && codeValue.trim() !== '') {
-            allCodes.push({ key: rcKey, value: codeValue });
+          
+          const kickValue = key === 'kickrc' ? value : newConfig.kickrc;
+          if (kickValue && kickValue.trim() !== '') {
+            allCodes.push(kickValue.toLowerCase());
           }
-        });
-
-        // Alt RC codes
-        ['rcl1', 'rcl2', 'rcl3', 'rcl4', 'rcl5'].forEach(rcKey => {
-          const codeValue = rcKey === key ? value : newConfig[rcKey];
-          if (codeValue && codeValue.trim() !== '') {
-            allCodes.push({ key: rcKey, value: codeValue });
+          
+          const duplicates = allCodes.filter((val, idx) => allCodes.indexOf(val) !== idx);
+          if (duplicates.length > 0) {
+            showToast('This code is already in use. Please use a unique code.', 'error');
+            return prev;
           }
-        });
-
-        // Kick code
-        const kickValue = key === 'kickrc' ? value : newConfig.kickrc;
-        if (kickValue && kickValue.trim() !== '') {
-          allCodes.push({ key: 'kickrc', value: kickValue });
-        }
-
-        // Check for duplicates
-        const codeValues = allCodes.map(c => c.value.toLowerCase());
-        const duplicates = codeValues.filter((val, idx) => codeValues.indexOf(val) !== idx);
-
-        if (duplicates.length > 0) {
-          console.warn(`Duplicate code detected: ${value}. Code not updated.`);
-          showToast('This code is already in use. Please use a unique code.', 'error');
-          return prev; // Don't update if duplicate
         }
       }
 
-      const newConfig = { ...prev, [key]: value };
-
-      // Debounce backend updates - wait 1 second after user stops typing
-      if (window.configUpdateTimer) {
-        clearTimeout(window.configUpdateTimer);
-      }
-
-      window.configUpdateTimer = setTimeout(() => {
-        // Save to localStorage
-        localStorage.setItem('galaxyKickLockConfig', JSON.stringify(newConfig));
-
-        // Send to backend
-        updateConfig(newConfig).then(() => {
-          console.log(`Config updated: ${key} = ${value}`);
-        }).catch(err => {
-          console.error('Failed to update config:', err);
-        });
-      }, 1000);
+      // Save and send immediately
+      localStorage.setItem('galaxyKickLockConfig', JSON.stringify(newConfig));
+      updateConfig(newConfig);
 
       return newConfig;
     });
   };
 
   const handleConnect = async () => {
+    console.log('🚀 CONNECT CLICKED - Full config to be sent:', config);
     try {
       // Validation: Check if at least one RC code is provided
       const hasAnyCode = config.rc1 || config.rc2 || config.rc3 || config.rc4 || config.rc5;
@@ -474,16 +494,14 @@ function UserApp() {
         }
       }
 
-      console.log('Sending configuration to backend:', config);
       // Update configuration first
+      console.log('📤 Sending config to backend before connect...');
       await updateConfig(config);
-      console.log('Configuration sent successfully');
+      console.log('✅ Config sent, now connecting...');
       // Then connect
       await connect();
-      console.log('Connected successfully');
       showToast('Connected successfully!', 'success');
     } catch (err) {
-      console.error('Connection failed:', err);
 
       // Provide more specific error messages
       let errorMessage = 'Failed to connect to backend';
@@ -504,7 +522,6 @@ function UserApp() {
     try {
       await disconnect();
     } catch (err) {
-      console.error('Disconnect failed:', err);
 
       // Try to extract error message from backend response
       let errorMessage = 'Disconnect failed';
@@ -525,29 +542,17 @@ function UserApp() {
 
   const handleReleaseAll = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/release`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'bypass-tunnel-reminder': 'true',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('Release command sent successfully:', data);
+      const { apiClient } = await import('./utils/api');
+      await apiClient.release();
+      showToast('Release command sent!', 'success');
     } catch (err) {
-      console.error('Release failed:', err);
+      showToast(`Release failed: ${err.message}`, 'error');
     }
   };
 
   const handleFlyToPlanet = async () => {
     try {
       if (!config.planet) {
-        console.log('Please enter a planet name');
         showToast('Please enter a planet name', 'error');
         return;
       }
@@ -557,7 +562,6 @@ function UserApp() {
       const connectedWs = Object.entries(wsStatus).filter(([key, isConnected]) => isConnected);
 
       if (connectedWs.length === 0) {
-        console.log('No websockets connected');
         showToast('No connections active. Please connect first.', 'error');
         return;
       }
@@ -571,10 +575,8 @@ function UserApp() {
       if (wsStatus.ws5) promises.push(sendCommand(5, `JOIN ${config.planet}`));
 
       await Promise.all(promises);
-      console.log(`Flying to ${config.planet}`);
       showToast(`Flying to ${config.planet}`, 'success');
     } catch (err) {
-      console.error('Fly failed:', err);
       showToast(`Fly failed: ${err.message}`, 'error');
     }
   };
@@ -598,10 +600,11 @@ function UserApp() {
         loading={loading}
         onLogout={handleLogout}
         currentUser={currentUser}
+        onDeploymentSuccess={startMonitoring}
       />
 
-      {/* 2. MAIN DASHBOARD (3 COLUMNS) */}
-      <div className="main-dashboard">
+      {/* 2. MAIN DASHBOARD (3 COLUMNS) - Dimmed until deployed or local test */}
+      <div className={`main-dashboard ${localStorage.getItem('deploymentStatus') !== 'deployed' && localStorage.getItem('localTestMode') !== 'true' ? 'dashboard-disabled' : ''}`}>
         {/* Left: Neural Link */}
         <NeuralLink
           config={config}
@@ -623,13 +626,27 @@ function UserApp() {
         />
       </div>
 
-      {/* 3. FOOTER LOGS */}
-      <DataStreams logs={logs} />
+      {/* 3. FOOTER LOGS - Dimmed until deployed or local test */}
+      <div className={localStorage.getItem('deploymentStatus') !== 'deployed' && localStorage.getItem('localTestMode') !== 'true' ? 'logs-disabled' : ''}>
+        <DataStreams logs={logs} />
+      </div>
 
       {/* FOOTER COPYRIGHT */}
       <div className="app-footer">
         © 2026 THALA. All Rights Reserved.
       </div>
+
+      {/* LOGOUT CONFIRMATION MODAL */}
+      <ConfirmModal
+        isOpen={showLogoutConfirm}
+        title="⚠️ LOGOUT WARNING"
+        message={logoutWarningMessage}
+        onConfirm={performLogout}
+        onCancel={() => setShowLogoutConfirm(false)}
+        confirmText="FORCE LOGOUT"
+        cancelText="CANCEL"
+        type="danger"
+      />
 
       {/* TOAST OVERLAY */}
       {toast && (

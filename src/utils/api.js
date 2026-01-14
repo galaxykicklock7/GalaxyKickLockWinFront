@@ -1,42 +1,56 @@
 import axios from 'axios';
+import { getBackendUrl } from './backendUrl';
 
-// Get backend URL from environment variable or use default
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+// Create a function to get the current axios instance with the right backend URL
+const createApiInstance = () => {
+  const BACKEND_URL = getBackendUrl();
+  
+  // Always use the backend URL directly (no proxy)
+  const baseURL = BACKEND_URL;
 
-// Only use proxy for localhost backends, use direct URL for tunnels/production
-const isDevelopment = import.meta.env.DEV;
-const isLocalBackend = BACKEND_URL.includes('localhost') || BACKEND_URL.includes('127.0.0.1');
-const baseURL = (isDevelopment && isLocalBackend) ? '' : BACKEND_URL;
+  console.log('🔧 Creating API instance with baseURL:', baseURL);
 
-console.log('API Configuration:');
-console.log('- BACKEND_URL:', BACKEND_URL);
-console.log('- isDevelopment:', isDevelopment);
-console.log('- isLocalBackend:', isLocalBackend);
-console.log('- baseURL (used by axios):', baseURL);
+  // Create axios instance
+  const axiosInstance = axios.create({
+    baseURL: baseURL,
+    timeout: 30000,
+    headers: {
+      'Content-Type': 'application/json',
+      'bypass-tunnel-reminder': 'true'
+    }
+  });
 
-// Create axios instance
-const api = axios.create({
-  baseURL: baseURL,
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json',
-    'bypass-tunnel-reminder': 'true'
-  }
-});
+  // Intercept response to silently handle CORS/network errors
+  axiosInstance.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      if (error.code === 'ERR_NETWORK' || error.code === 'ERR_CONNECTION_REFUSED' || 
+          error.message.includes('Network Error') || error.message.includes('CORS') ||
+          error.message.includes('ERR_FAILED')) {
+        return Promise.reject({ message: 'Network error', code: 'NETWORK_ERROR' });
+      }
+      return Promise.reject(error);
+    }
+  );
 
-// For LocalTunnel, we'll handle bypass differently (via query param or direct access)
-const isLocalTunnel = BACKEND_URL.includes('loca.lt');
+  return axiosInstance;
+};
+
+// Get the current API instance
+const getApi = () => createApiInstance();
 
 // API methods
 export const apiClient = {
   // Health check
   async health() {
+    const api = getApi();
     const response = await api.get('/api/health');
     return response.data;
   },
 
   // Get status
   async getStatus() {
+    const api = getApi();
     // Add timestamp to prevent caching
     const response = await api.get(`/api/status?t=${Date.now()}`, {
       headers: {
@@ -49,6 +63,7 @@ export const apiClient = {
 
   // Get logs
   async getLogs() {
+    const api = getApi();
     // Add timestamp to prevent caching
     const response = await api.get(`/api/logs?t=${Date.now()}`, {
       headers: {
@@ -56,38 +71,63 @@ export const apiClient = {
         'Pragma': 'no-cache'
       }
     });
-    console.log('getLogs API response:', response);
-    console.log('getLogs response.data:', response.data);
     return response.data;
   },
 
   // Configure
   async configure(config) {
-    const response = await api.post('/api/configure', config);
-    return response.data;
+    const api = getApi();
+    const backendUrl = getBackendUrl();
+    console.log('🌐 API POST /api/configure - Sending payload:', config);
+    console.log('🌐 Backend URL:', backendUrl);
+    console.log('🌐 Full URL:', backendUrl ? `${backendUrl}/api/configure` : 'NO BACKEND URL!');
+    
+    if (!backendUrl) {
+      console.error('❌ Backend URL is null! Cannot send config.');
+      throw new Error('Backend URL not configured. Enable Local Test mode or deploy backend.');
+    }
+    
+    try {
+      const response = await api.post('/api/configure', config);
+      console.log('✅ API POST /api/configure - Response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ API POST /api/configure - Error:', error);
+      throw error;
+    }
   },
 
   // Connect
   async connect() {
+    const api = getApi();
     const response = await api.post('/api/connect');
     return response.data;
   },
 
   // Disconnect
   async disconnect() {
+    const api = getApi();
     const response = await api.post('/api/disconnect');
     return response.data;
   },
 
   // Send command to specific WebSocket
   async sendCommand(wsNumber, command) {
+    const api = getApi();
     const response = await api.post('/api/send', {
       wsNumber,
       command
     });
     return response.data;
+  },
+
+  // Release all from prison
+  async release() {
+    const api = getApi();
+    const response = await api.post('/api/release');
+    return response.data;
   }
 };
 
-export default api;
-export { BACKEND_URL };
+export default getApi;
+export { getBackendUrl as BACKEND_URL };

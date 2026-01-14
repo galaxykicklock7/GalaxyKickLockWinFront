@@ -103,7 +103,8 @@ body,
 /* ACTIONS (Left) */
 .action-cluster {
     display: flex;
-    gap: 20px;
+    gap: 15px;
+    position: relative;
 }
 
 .hex-btn {
@@ -137,6 +138,52 @@ body,
     color: #000;
     box-shadow: 0 0 30px var(--neon-green);
     transform: translateY(-1px);
+}
+
+.btn-deploy {
+    background: rgba(0, 102, 255, 0.15);
+    border-color: var(--neon-blue);
+    color: #fff;
+    box-shadow: 0 0 15px rgba(0, 102, 255, 0.15);
+    gap: 8px;
+}
+
+.btn-deploy:hover:not(:disabled) {
+    background: var(--neon-blue);
+    color: #fff;
+    box-shadow: 0 0 30px var(--neon-blue);
+    transform: translateY(-1px);
+}
+
+.btn-undeploy {
+    background: rgba(255, 157, 0, 0.15);
+    border-color: var(--neon-orange);
+    color: #fff;
+    box-shadow: 0 0 15px rgba(255, 157, 0, 0.15);
+    gap: 8px;
+}
+
+.btn-undeploy:hover:not(:disabled) {
+    background: var(--neon-orange);
+    color: #000;
+    box-shadow: 0 0 30px var(--neon-orange);
+    transform: translateY(-1px);
+}
+
+.deployment-progress {
+    position: absolute;
+    bottom: -25px;
+    left: 20px;
+    padding: 5px 10px;
+    background: rgba(0, 10, 20, 0.9);
+    border: 1px solid rgba(0, 243, 255, 0.3);
+    border-radius: 3px;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
 }
 
 .btn-exit {
@@ -183,6 +230,19 @@ body,
     padding: 5px 10px;
     gap: 10px;
     border-radius: 3px;
+    transition: all 0.3s ease;
+}
+
+.nav-deck-disabled {
+    opacity: 0.3;
+    filter: grayscale(1);
+    pointer-events: none;
+}
+
+.system-status-disabled {
+    opacity: 0.3;
+    filter: grayscale(1);
+    pointer-events: none;
 }
 
 .nav-input {
@@ -293,6 +353,19 @@ body,
     grid-template-columns: 0.85fr 0.75fr 0.4fr;
     gap: 10px;
     overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.dashboard-disabled {
+    opacity: 0.2;
+    filter: grayscale(1) blur(2px);
+    pointer-events: none;
+}
+
+.logs-disabled {
+    opacity: 0.2;
+    filter: grayscale(1) blur(2px);
+    pointer-events: none;
 }
 
 /* CARDS COMMON */

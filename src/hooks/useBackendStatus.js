@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiClient } from '../utils/api';
 
 export const useBackendStatus = () => {
@@ -7,6 +7,8 @@ export const useBackendStatus = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [connected, setConnected] = useState(false);
+  const consecutiveFailures = useRef(0);
+  const pollingIntervalRef = useRef(null);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -14,9 +16,21 @@ export const useBackendStatus = () => {
       setStatus(statusData);
       setConnected(statusData.connected);
       setError(null);
+      consecutiveFailures.current = 0;
     } catch (err) {
-      setError(err.message);
-      setConnected(false);
+      consecutiveFailures.current++;
+      if (err.code !== 'NETWORK_ERROR') {
+        setConnected(false);
+      }
+      // Don't auto-reset deployment status - let user manually deactivate
+      // This prevents false positives from temporary network issues
+      if (consecutiveFailures.current >= 10) {
+        console.warn('⚠️ Backend unreachable for 10 seconds, but keeping deployment active');
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -25,38 +39,85 @@ export const useBackendStatus = () => {
   const fetchLogs = useCallback(async () => {
     try {
       const logsData = await apiClient.getLogs();
-      console.log('Raw logs response:', logsData);
-      
+
       // Backend returns logs directly, not wrapped in a 'logs' property
       if (logsData && (logsData.log1 || logsData.log2 || logsData.log3 || logsData.log4 || logsData.log5)) {
-        console.log('Setting logs:', logsData);
         setLogs(logsData);
       } else if (logsData && logsData.logs) {
         // Fallback: if backend wraps in 'logs' property
-        console.log('Setting logs (wrapped):', logsData.logs);
         setLogs(logsData.logs);
-      } else {
-        console.warn('Logs data structure unexpected:', logsData);
       }
+      consecutiveFailures.current = 0;
     } catch (err) {
-      console.error('Failed to fetch logs:', err);
+      if (err.code === 'NETWORK_ERROR') {
+        consecutiveFailures.current++;
+        // Don't auto-reset deployment status - let user manually deactivate
+        if (consecutiveFailures.current >= 10) {
+          console.warn('⚠️ Backend unreachable for 10 seconds, but keeping deployment active');
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+        }
+      }
     }
   }, []);
 
-  // Efficient polling - only when connected
+  // Efficient polling - only when deployed
   useEffect(() => {
-    // Initial fetch
-    fetchStatus();
-    fetchLogs();
+    // Check if backend is deployed
+    const checkDeploymentAndPoll = () => {
+      const isDeployed = localStorage.getItem('deploymentStatus') === 'deployed';
+      
+      if (!isDeployed) {
+        setLoading(false);
+        setConnected(false);
+        return null;
+      }
 
-    // Poll every 1 second for real-time feel
-    const pollInterval = setInterval(() => {
+      // Initial fetch
       fetchStatus();
       fetchLogs();
-    }, 1000);
+
+      // Poll every 1 second for real-time feel
+      pollingIntervalRef.current = setInterval(() => {
+        if (localStorage.getItem('deploymentStatus') === 'deployed') {
+          fetchStatus();
+          fetchLogs();
+        }
+      }, 1000);
+
+      return pollingIntervalRef.current;
+    };
+
+    let pollInterval = checkDeploymentAndPoll();
+
+    // Listen for deployment status changes (custom event from same tab)
+    const handleDeploymentChange = (e) => {
+      // Clear existing interval
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+      consecutiveFailures.current = 0;
+
+      // Restart polling if deployed
+      if (e.detail.status === 'deployed') {
+        pollInterval = checkDeploymentAndPoll();
+      } else {
+        setLoading(false);
+        setConnected(false);
+      }
+    };
+
+    window.addEventListener('deploymentStatusChanged', handleDeploymentChange);
 
     return () => {
-      clearInterval(pollInterval);
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+      window.removeEventListener('deploymentStatusChanged', handleDeploymentChange);
     };
   }, [fetchStatus, fetchLogs]);
 
@@ -89,11 +150,15 @@ export const useBackendStatus = () => {
   }, [fetchStatus]);
 
   const updateConfig = useCallback(async (config) => {
+    console.log('🎯 useBackendStatus.updateConfig() CALLED with config:', config);
     try {
+      console.log('🎯 Calling apiClient.configure()...');
       const result = await apiClient.configure(config);
+      console.log('🎯 apiClient.configure() returned:', result);
       // Don't fetch status immediately to avoid overwriting the UI
       return result;
     } catch (err) {
+      console.error('🎯 updateConfig ERROR:', err);
       setError(err.message);
       throw err;
     }
