@@ -174,13 +174,57 @@ function UserApp() {
       localStorage.setItem('activeTabId', tabId);
     }
 
-    // Save config before page unload
-    const handleBeforeUnload = () => {
+    // Save config before page unload AND cleanup workflows
+    const handleBeforeUnload = async (e) => {
       if (window.configUpdateTimer) {
         clearTimeout(window.configUpdateTimer);
       }
       // Save current config immediately
       localStorage.setItem('galaxyKickLockConfig', JSON.stringify(config));
+      
+      // CRITICAL: Cancel workflow if user closes tab/browser
+      const isDeployed = localStorage.getItem('deploymentStatus') === 'deployed';
+      const workflowRunId = localStorage.getItem('workflowRunId');
+      
+      if (isDeployed || workflowRunId) {
+        // Show browser warning
+        e.preventDefault();
+        e.returnValue = 'You have an active backend deployment. Closing this tab will cancel the workflow to prevent costs. Are you sure?';
+        
+        // Try to cancel workflow (may not complete if user closes immediately)
+        try {
+          const { cancelWorkflowRun, getLatestRunningWorkflowId } = await import('./utils/github');
+          
+          let runIdToCancel = workflowRunId ? parseInt(workflowRunId) : null;
+          
+          if (!runIdToCancel) {
+            runIdToCancel = await getLatestRunningWorkflowId();
+          }
+          
+          if (runIdToCancel) {
+            // Use sendBeacon for reliable cleanup even if page closes
+            const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN;
+            const GITHUB_OWNER = import.meta.env.VITE_GITHUB_OWNER;
+            const GITHUB_REPO = import.meta.env.VITE_GITHUB_REPO;
+            
+            // Attempt to cancel (best effort)
+            fetch(
+              `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/actions/runs/${runIdToCancel}/cancel`,
+              {
+                method: 'POST',
+                headers: {
+                  'Accept': 'application/vnd.github+json',
+                  'Authorization': `Bearer ${GITHUB_TOKEN}`,
+                  'X-GitHub-Api-Version': '2022-11-28',
+                },
+                keepalive: true // Keep request alive even if page closes
+              }
+            ).catch(() => {});
+          }
+        } catch (err) {
+          console.warn('Failed to cancel workflow on tab close:', err);
+        }
+      }
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -318,12 +362,12 @@ function UserApp() {
     const isDeployed = localStorage.getItem('deploymentStatus') === 'deployed';
     
     if (connected || isDeployed) {
-      // Show warning modal - user needs to clean up first
+      // Show warning modal with auto-cleanup option
       const issues = [];
       if (connected) issues.push('• Still CONNECTED to system');
-      if (isDeployed) issues.push('• Deployment still ACTIVE');
+      if (isDeployed) issues.push('• Deployment still ACTIVE (costing resources)');
       
-      const message = `${issues.join('\n')}\n\nRecommended steps before logout:\n1. Click DISCONNECT (if connected)\n2. Click DEACTIVATE (if deployed)\n3. Then logout\n\nForce logout will automatically clean up, but may leave resources running.`;
+      const message = `${issues.join('\n')}\n\n⚠️ IMPORTANT: Backend workflows cost money!\n\nRecommended: Auto-cleanup will:\n1. Disconnect from system\n2. Deactivate deployment\n3. Cancel running workflow\n4. Then logout\n\nThis prevents wasted resources and costs.`;
       
       setLogoutWarningMessage(message);
       setShowLogoutConfirm(true);
@@ -336,37 +380,65 @@ function UserApp() {
 
   const performLogout = async () => {
     setShowLogoutConfirm(false);
-    showToast('Logging out...', 'info');
+    showToast('Cleaning up and logging out...', 'info');
 
-    // Force cleanup
-    if (connected) {
-      try {
-        await disconnect();
-      } catch (err) {
+    // CRITICAL: Force cleanup to prevent cost waste
+    try {
+      // 1. Disconnect if connected
+      if (connected) {
+        try {
+          await disconnect();
+        } catch (err) {
+          console.warn('Disconnect failed during logout:', err);
+        }
       }
-    }
 
-    // Clear deployment state
-    const isDeployed = localStorage.getItem('deploymentStatus') === 'deployed';
-    if (isDeployed) {
-      localStorage.removeItem('deploymentStatus');
-      localStorage.removeItem('workflowRunId');
-      localStorage.removeItem('backendSubdomain');
+      // 2. Cancel workflow and clear deployment if active
+      const isDeployed = localStorage.getItem('deploymentStatus') === 'deployed';
+      const workflowRunId = localStorage.getItem('workflowRunId');
+      
+      if (isDeployed || workflowRunId) {
+        try {
+          // Cancel the workflow to stop backend
+          const { cancelWorkflowRun, getLatestRunningWorkflowId } = await import('./utils/github');
+          
+          let runIdToCancel = workflowRunId ? parseInt(workflowRunId) : null;
+          
+          // If no stored run ID, try to find the latest running one
+          if (!runIdToCancel) {
+            runIdToCancel = await getLatestRunningWorkflowId();
+          }
+          
+          if (runIdToCancel) {
+            await cancelWorkflowRun(runIdToCancel);
+          }
+        } catch (err) {
+          console.warn('Failed to cancel workflow during logout:', err);
+        }
 
-      // Clear backend URL
-      const { clearBackendUrl } = await import('./utils/backendUrl');
-      clearBackendUrl();
+        // Clear deployment state
+        localStorage.removeItem('deploymentStatus');
+        localStorage.removeItem('workflowRunId');
+        localStorage.removeItem('backendSubdomain');
+        localStorage.removeItem('localTestMode');
 
-      // Stop workflow monitoring
-      stopMonitoring();
+        // Clear backend URL
+        const { clearBackendUrl } = await import('./utils/backendUrl');
+        clearBackendUrl();
 
-      // Emit event to reset UI
-      window.dispatchEvent(new CustomEvent('deploymentStatusChanged', {
-        detail: { status: 'idle' }
-      }));
+        // Stop workflow monitoring
+        stopMonitoring();
+
+        // Emit event to reset UI
+        window.dispatchEvent(new CustomEvent('deploymentStatusChanged', {
+          detail: { status: 'idle' }
+        }));
+      }
+    } catch (err) {
+      console.error('Cleanup failed during logout:', err);
     }
     
-    // Perform logout
+    // 3. Perform logout
     await logoutUser();
     setCurrentUser(null);
     setAuthenticated(false);
@@ -639,13 +711,13 @@ function UserApp() {
       {/* LOGOUT CONFIRMATION MODAL */}
       <ConfirmModal
         isOpen={showLogoutConfirm}
-        title="⚠️ LOGOUT WARNING"
+        title="⚠️ AUTO-CLEANUP & LOGOUT"
         message={logoutWarningMessage}
         onConfirm={performLogout}
         onCancel={() => setShowLogoutConfirm(false)}
-        confirmText="FORCE LOGOUT"
+        confirmText="AUTO-CLEANUP & LOGOUT"
         cancelText="CANCEL"
-        type="danger"
+        type="warning"
       />
 
       {/* TOAST OVERLAY */}

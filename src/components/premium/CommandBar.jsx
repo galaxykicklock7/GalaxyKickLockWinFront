@@ -118,6 +118,36 @@ const CommandBar = ({
     };
 
     const handleDeploy = async () => {
+        // CRITICAL: Check if user already has a running workflow
+        try {
+            setDeploymentProgress({ percentage: 0, message: 'Checking for existing workflows...' });
+            const existingRunId = await getLatestRunningWorkflowId();
+            
+            if (existingRunId) {
+                // User has a running workflow - show confirmation modal
+                setConfirmModalConfig({
+                    title: '⚠️ WORKFLOW ALREADY RUNNING',
+                    message: `You already have an active backend workflow running!\n\nWorkflow ID: ${existingRunId}\n\nStarting a new workflow will:\n• Cancel the existing workflow\n• Stop the current backend\n• Create a new deployment\n\nThis prevents duplicate costs.\n\nDo you want to cancel the old workflow and start a new one?`,
+                    confirmText: 'CANCEL OLD & START NEW',
+                    type: 'warning',
+                    onConfirm: () => {
+                        setShowConfirmModal(false);
+                        performDeploy(existingRunId);
+                    }
+                });
+                setShowConfirmModal(true);
+                return;
+            }
+        } catch (error) {
+            console.warn('Failed to check for existing workflows:', error);
+            // Continue anyway - better to deploy than block user
+        }
+        
+        // No existing workflow - proceed directly
+        performDeploy(null);
+    };
+
+    const performDeploy = async (oldRunId) => {
         setIsDeploying(true);
         setIsDeactivating(false);
         setDeploymentStatus('deploying');
@@ -125,6 +155,13 @@ const CommandBar = ({
         setDeploymentProgress({ percentage: 0, message: 'Initializing deployment sequence...' });
 
         try {
+            // If there's an old workflow, cancel it first
+            if (oldRunId) {
+                setDeploymentProgress({ percentage: 5, message: 'Cancelling old workflow...' });
+                await cancelWorkflowRun(oldRunId);
+                await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for cancellation
+            }
+
             // Step 1: Trigger workflow (10%)
             setDeploymentProgress({ percentage: 10, message: 'Generating unique subdomain...' });
             
