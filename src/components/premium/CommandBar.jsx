@@ -29,6 +29,7 @@ const CommandBar = ({
     const [confirmModalConfig, setConfirmModalConfig] = useState({});
     const [isDeactivating, setIsDeactivating] = useState(false);
     const [localTestMode, setLocalTestMode] = useState(false);
+    const [isReleasing, setIsReleasing] = useState(false);
 
     // Check if deployment is already done (persisted in localStorage)
     useEffect(() => {
@@ -352,12 +353,18 @@ const CommandBar = ({
     };
 
     const handleRelease = async () => {
+        // Prevent spam - disable button during processing
+        if (isReleasing) return;
+        
+        setIsReleasing(true);
+        
         try {
             const { getBackendUrl } = await import('../../utils/backendUrl');
             const backendUrl = getBackendUrl();
             
             if (!backendUrl) {
                 showToast?.('System not active', 'error');
+                setIsReleasing(false);
                 return;
             }
 
@@ -371,11 +378,11 @@ const CommandBar = ({
 
             const data = await response.json();
 
-            // SMART TOAST: Single message with summary
+            // SMART TOAST: Single message based on backend response
             if (data.success) {
                 // Some were in prison - show success
                 if (data.details.inPrison > 0) {
-                    showToast?.(`✅ Releasing ${data.details.inPrison} from prison`, 'success');
+                    showToast?.(`✅ Released ${data.details.inPrison} from prison`, 'success');
                 } else if (data.details.notInPrison > 0 && data.details.inPrison === 0) {
                     // None in prison - show info
                     showToast?.(`ℹ️ All connections already free`, 'info');
@@ -395,6 +402,9 @@ const CommandBar = ({
         } catch (error) {
             console.error('Release error:', error);
             showToast?.('❌ Release failed', 'error');
+        } finally {
+            // Re-enable button after processing
+            setIsReleasing(false);
         }
     };
 
@@ -465,10 +475,10 @@ const CommandBar = ({
                         <button
                             className="hex-btn btn-release"
                             onClick={handleRelease}
-                            disabled={!connected}
+                            disabled={!connected || isReleasing}
                             style={{ color: '#fff' }}
                         >
-                            RELEASE
+                            {isReleasing ? 'RELEASING...' : 'RELEASE'}
                         </button>
                     </>
                 )}
