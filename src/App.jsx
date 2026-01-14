@@ -189,7 +189,7 @@ function UserApp() {
       if (isDeployed || workflowRunId) {
         // Show browser warning
         e.preventDefault();
-        e.returnValue = 'You have an active backend deployment. Closing this tab will cancel the workflow to prevent costs. Are you sure?';
+        e.returnValue = 'System is still active. Are you sure you want to leave?';
         
         // Try to cancel workflow (may not complete if user closes immediately)
         try {
@@ -364,10 +364,10 @@ function UserApp() {
     if (connected || isDeployed) {
       // Show warning modal with auto-cleanup option
       const issues = [];
-      if (connected) issues.push('• Still CONNECTED to system');
-      if (isDeployed) issues.push('• Deployment still ACTIVE (costing resources)');
+      if (connected) issues.push('• Still connected');
+      if (isDeployed) issues.push('• System still active');
       
-      const message = `${issues.join('\n')}\n\n⚠️ IMPORTANT: Backend workflows cost money!\n\nRecommended: Auto-cleanup will:\n1. Disconnect from system\n2. Deactivate deployment\n3. Cancel running workflow\n4. Then logout\n\nThis prevents wasted resources and costs.`;
+      const message = `${issues.join('\n')}\n\nAuto-cleanup will disconnect and deactivate before logout.\n\nContinue?`;
       
       setLogoutWarningMessage(message);
       setShowLogoutConfirm(true);
@@ -380,7 +380,7 @@ function UserApp() {
 
   const performLogout = async () => {
     setShowLogoutConfirm(false);
-    showToast('Cleaning up and logging out...', 'info');
+    showToast('Logging out...', 'info');
 
     // CRITICAL: Force cleanup to prevent cost waste
     try {
@@ -711,11 +711,11 @@ function UserApp() {
       {/* LOGOUT CONFIRMATION MODAL */}
       <ConfirmModal
         isOpen={showLogoutConfirm}
-        title="⚠️ AUTO-CLEANUP & LOGOUT"
+        title="⚠️ LOGOUT"
         message={logoutWarningMessage}
         onConfirm={performLogout}
         onCancel={() => setShowLogoutConfirm(false)}
-        confirmText="AUTO-CLEANUP & LOGOUT"
+        confirmText="LOGOUT"
         cancelText="CANCEL"
         type="warning"
       />

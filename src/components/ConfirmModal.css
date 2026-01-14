@@ -19,14 +19,14 @@
 .confirm-modal-container {
   background: linear-gradient(135deg, rgba(10, 10, 20, 0.98) 0%, rgba(20, 15, 10, 0.98) 100%);
   backdrop-filter: blur(30px) saturate(180%);
-  border-radius: 16px;
+  border-radius: 12px;
   border: 2px solid rgba(255, 157, 0, 0.5);
   box-shadow: 
     0 0 40px rgba(255, 157, 0, 0.3),
     0 0 80px rgba(255, 157, 0, 0.2),
     inset 0 0 60px rgba(255, 157, 0, 0.05);
   width: 90%;
-  max-width: 500px;
+  max-width: 380px;
   animation: slideUp 0.3s ease-out;
   overflow: hidden;
   position: relative;
@@ -50,13 +50,13 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 30px 30px 20px 30px;
+  padding: 20px 20px 15px 20px;
   border-bottom: 1px solid rgba(255, 157, 0, 0.2);
 }
 
 .confirm-icon {
-  font-size: 56px;
-  margin-bottom: 15px;
+  font-size: 42px;
+  margin-bottom: 10px;
   animation: pulse 2s ease-in-out infinite;
 }
 
@@ -72,9 +72,9 @@
 
 .confirm-modal-title {
   font-family: 'Orbitron', sans-serif;
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 900;
-  letter-spacing: 2px;
+  letter-spacing: 1.5px;
   color: #fff;
   text-shadow: 
     0 0 10px rgba(255, 157, 0, 0.8),
@@ -84,38 +84,38 @@
 }
 
 .confirm-modal-body {
-  padding: 25px 30px;
+  padding: 18px 20px;
 }
 
 .confirm-modal-message {
   font-family: 'Rajdhani', sans-serif;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   color: #cbd5e1;
   text-align: center;
   margin: 0;
-  line-height: 1.8;
+  line-height: 1.6;
   white-space: pre-line;
 }
 
 .confirm-modal-footer {
-  padding: 20px 30px 30px 30px;
+  padding: 15px 20px 20px 20px;
   display: flex;
-  gap: 15px;
+  gap: 12px;
   justify-content: center;
 }
 
 .confirm-modal-btn {
   font-family: 'Orbitron', sans-serif;
   font-weight: 700;
-  font-size: 13px;
-  padding: 12px 30px;
+  font-size: 12px;
+  padding: 10px 24px;
   border: 2px solid;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.3s ease;
-  letter-spacing: 2px;
-  min-width: 120px;
+  letter-spacing: 1.5px;
+  min-width: 100px;
 }
 
 .btn-cancel {

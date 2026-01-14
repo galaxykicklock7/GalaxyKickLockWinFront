@@ -126,9 +126,9 @@ const CommandBar = ({
             if (existingRunId) {
                 // User has a running workflow - show confirmation modal
                 setConfirmModalConfig({
-                    title: '⚠️ WORKFLOW ALREADY RUNNING',
-                    message: `You already have an active backend workflow running!\n\nWorkflow ID: ${existingRunId}\n\nStarting a new workflow will:\n• Cancel the existing workflow\n• Stop the current backend\n• Create a new deployment\n\nThis prevents duplicate costs.\n\nDo you want to cancel the old workflow and start a new one?`,
-                    confirmText: 'CANCEL OLD & START NEW',
+                    title: '⚠️ SYSTEM ALREADY ACTIVE',
+                    message: 'You already have an active session running.\n\nStarting a new session will stop the current one.\n\nContinue?',
+                    confirmText: 'START NEW SESSION',
                     type: 'warning',
                     onConfirm: () => {
                         setShowConfirmModal(false);
@@ -157,13 +157,13 @@ const CommandBar = ({
         try {
             // If there's an old workflow, cancel it first
             if (oldRunId) {
-                setDeploymentProgress({ percentage: 5, message: 'Cancelling old workflow...' });
+                setDeploymentProgress({ percentage: 5, message: 'Stopping previous session...' });
                 await cancelWorkflowRun(oldRunId);
                 await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for cancellation
             }
 
             // Step 1: Trigger workflow (10%)
-            setDeploymentProgress({ percentage: 10, message: 'Generating unique subdomain...' });
+            setDeploymentProgress({ percentage: 10, message: 'Initializing system...' });
             
             // Get current user's username
             if (!currentUser || !currentUser.username) {
@@ -176,7 +176,7 @@ const CommandBar = ({
                 throw new Error(triggerResult.error || 'Failed to trigger deployment');
             }
 
-            // Store the subdomain for later use
+            // Store the subdomain for later use (but don't show it to user)
             const subdomain = triggerResult.subdomain;
             const backendUrl = `https://${subdomain}.loca.lt`;
 
@@ -187,11 +187,11 @@ const CommandBar = ({
             localStorage.setItem('workflowRunId', triggerResult.run_id.toString());
 
             // Step 2: Workflow triggered (20%)
-            setDeploymentProgress({ percentage: 20, message: `Workflow triggered with subdomain: ${subdomain}` });
+            setDeploymentProgress({ percentage: 20, message: 'System initialized...' });
             await new Promise(resolve => setTimeout(resolve, 1000));
 
             // Step 3: Waiting for workflow to start (30%)
-            setDeploymentProgress({ percentage: 30, message: 'Waiting for workflow to initialize...' });
+            setDeploymentProgress({ percentage: 30, message: 'Establishing connection...' });
 
             // Step 4: Poll until workflow reaches "Keep running" stage (30% - 90%)
             const pollResult = await pollWorkflowUntilRunning(
@@ -201,7 +201,7 @@ const CommandBar = ({
                     const progressPercent = 30 + Math.min(60, (progress.attempt / progress.maxAttempts) * 60);
                     setDeploymentProgress({
                         percentage: Math.round(progressPercent),
-                        message: `Deploying backend at ${subdomain}.loca.lt... (${progress.status})`
+                        message: `Activating system... (${progress.status})`
                     });
                 }
             );
@@ -214,10 +214,10 @@ const CommandBar = ({
             setDeploymentProgress({ percentage: 95, message: 'Finalizing activation...' });
             await new Promise(resolve => setTimeout(resolve, 1000));
 
-            // Step 6: Success! (100%)
+            // Step 6: Success! (100%) - Don't show backend URL
             setDeploymentProgress({ 
                 percentage: 100, 
-                message: `Galaxy Kick Lock 2.0 activated!\nBackend URL: ${backendUrl}` 
+                message: 'Galaxy Kick Lock 2.0 activated!' 
             });
             setDeploymentStatus('deployed');
             setCurrentRunId(triggerResult.run_id);
@@ -253,7 +253,7 @@ const CommandBar = ({
         if (connected) {
             setConfirmModalConfig({
                 title: '⚠️ STILL CONNECTED',
-                message: 'You are still connected to the system!\n\nPlease disconnect first before deactivating.\n\nDo you want to force deactivation anyway?',
+                message: 'Please disconnect before deactivating.\n\nForce deactivation anyway?',
                 confirmText: 'FORCE DEACTIVATE',
                 type: 'danger',
                 onConfirm: () => {
@@ -264,7 +264,7 @@ const CommandBar = ({
         } else {
             setConfirmModalConfig({
                 title: '⚠️ DEACTIVATE SYSTEM',
-                message: 'This will deactivate Galaxy Kick Lock 2.0 and cancel the running workflow.\n\nAre you sure you want to deactivate?',
+                message: 'Are you sure you want to deactivate?',
                 confirmText: 'DEACTIVATE',
                 type: 'warning',
                 onConfirm: () => {
@@ -294,7 +294,7 @@ const CommandBar = ({
             }
 
             if (runIdToCancel) {
-                setDeploymentProgress({ percentage: 40, message: 'Cancelling workflow...' });
+                setDeploymentProgress({ percentage: 40, message: 'Stopping system...' });
                 const cancelResult = await cancelWorkflowRun(runIdToCancel);
                 
                 if (!cancelResult.success) {
@@ -302,9 +302,9 @@ const CommandBar = ({
                     // Continue anyway - workflow might have already completed
                 }
                 
-                setDeploymentProgress({ percentage: 80, message: 'Workflow cancelled...' });
+                setDeploymentProgress({ percentage: 80, message: 'System stopped...' });
             } else {
-                setDeploymentProgress({ percentage: 50, message: 'No active workflow found...' });
+                setDeploymentProgress({ percentage: 50, message: 'No active session found...' });
             }
 
             // Clear deployment state
