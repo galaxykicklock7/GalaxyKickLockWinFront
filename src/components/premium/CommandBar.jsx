@@ -17,7 +17,8 @@ const CommandBar = ({
     loading,
     onLogout,
     currentUser,
-    onDeploymentSuccess // Callback to start workflow monitoring
+    onDeploymentSuccess, // Callback to start workflow monitoring
+    showToast // Toast function from App.jsx
 }) => {
     const [deploymentStatus, setDeploymentStatus] = useState('idle'); // idle, deploying, deployed, failed
     const [deploymentProgress, setDeploymentProgress] = useState({ percentage: 0, message: '' });
@@ -350,6 +351,53 @@ const CommandBar = ({
         }
     };
 
+    const handleRelease = async () => {
+        try {
+            const { getBackendUrl } = await import('../../utils/backendUrl');
+            const backendUrl = getBackendUrl();
+            
+            if (!backendUrl) {
+                showToast?.('System not active', 'error');
+                return;
+            }
+
+            const response = await fetch(`${backendUrl}/api/release`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'bypass-tunnel-reminder': 'true'
+                }
+            });
+
+            const data = await response.json();
+
+            // SMART TOAST: Single message with summary
+            if (data.success) {
+                // Some were in prison - show success
+                if (data.details.inPrison > 0) {
+                    showToast?.(`✅ Releasing ${data.details.inPrison} from prison`, 'success');
+                } else if (data.details.notInPrison > 0 && data.details.inPrison === 0) {
+                    // None in prison - show info
+                    showToast?.(`ℹ️ All connections already free`, 'info');
+                } else if (data.details.noCode > 0) {
+                    showToast?.(`⚠️ ${data.details.noCode} missing recovery codes`, 'warning');
+                } else {
+                    showToast?.(`ℹ️ No connections to release`, 'info');
+                }
+            } else {
+                // Error case
+                if (data.details?.noCode > 0) {
+                    showToast?.(`⚠️ ${data.details.noCode} missing recovery codes`, 'warning');
+                } else {
+                    showToast?.(`ℹ️ No connections to release`, 'info');
+                }
+            }
+        } catch (error) {
+            console.error('Release error:', error);
+            showToast?.('❌ Release failed', 'error');
+        }
+    };
+
     // Check if we're in development mode
     const isDevelopment = import.meta.env.DEV;
 
@@ -416,7 +464,7 @@ const CommandBar = ({
                         </button>
                         <button
                             className="hex-btn btn-release"
-                            onClick={onReleaseAll}
+                            onClick={handleRelease}
                             disabled={!connected}
                             style={{ color: '#fff' }}
                         >

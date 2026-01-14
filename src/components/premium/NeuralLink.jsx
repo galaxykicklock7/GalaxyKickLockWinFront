@@ -3,6 +3,9 @@ import { FaFingerprint, FaShieldAlt, FaCrosshairs, FaSkullCrossbones } from 'rea
 import './PremiumLayout.css';
 
 const NeuralLink = ({ config, onConfigChange, status }) => {
+    // Get prison status from backend status
+    const prisonStatus = status?.prisonStatus || {};
+    
     return (
         <div className="hud-panel neural-link">
             <div className="panel-header">
@@ -14,6 +17,13 @@ const NeuralLink = ({ config, onConfigChange, status }) => {
                 {[1, 2, 3, 4, 5].map((num) => {
                     // Check both possible status structures
                     const isConnected = status?.websockets?.[`ws${num}`] || status?.wsStatus?.[`ws${num}`];
+                    
+                    // Get prison status for PRIMARY (rc) and ALT (rcl)
+                    const primaryCode = config[`rc${num}`];
+                    const altCode = config[`rcl${num}`];
+                    const primaryInPrison = primaryCode && prisonStatus[primaryCode.toLowerCase()];
+                    const altInPrison = altCode && prisonStatus[altCode.toLowerCase()];
+                    
                     return (
                         <div key={num} className="code-card">
                             <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '2px' }}>
@@ -27,24 +37,54 @@ const NeuralLink = ({ config, onConfigChange, status }) => {
                             </div>
 
                             <div className="code-inputs">
-                                <input
-                                    type="text"
-                                    maxLength="10"
-                                    className="hud-input"
-                                    value={config[`rc${num}`]}
-                                    onChange={(e) => onConfigChange(`rc${num}`, e.target.value)}
-                                    placeholder="PRIMARY"
-                                    style={{ color: '#fff' }}
-                                />
-                                <input
-                                    type="text"
-                                    maxLength="10"
-                                    className="hud-input"
-                                    value={config[`rcl${num}`]}
-                                    onChange={(e) => onConfigChange(`rcl${num}`, e.target.value)}
-                                    placeholder="ALT"
-                                    style={{ color: '#fff' }}
-                                />
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                    <input
+                                        type="text"
+                                        maxLength="10"
+                                        className="hud-input"
+                                        value={config[`rc${num}`]}
+                                        onChange={(e) => onConfigChange(`rc${num}`, e.target.value)}
+                                        placeholder="PRIMARY"
+                                        style={{ color: '#fff', paddingRight: '22px' }}
+                                    />
+                                    {primaryCode && (
+                                        <span 
+                                            style={{ 
+                                                position: 'absolute', 
+                                                right: '6px', 
+                                                fontSize: '12px',
+                                                pointerEvents: 'none'
+                                            }}
+                                            title={primaryInPrison ? 'In prison' : 'Free'}
+                                        >
+                                            {primaryInPrison ? '🔒' : '🔓'}
+                                        </span>
+                                    )}
+                                </div>
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                    <input
+                                        type="text"
+                                        maxLength="10"
+                                        className="hud-input"
+                                        value={config[`rcl${num}`]}
+                                        onChange={(e) => onConfigChange(`rcl${num}`, e.target.value)}
+                                        placeholder="ALT"
+                                        style={{ color: '#fff', paddingRight: '22px' }}
+                                    />
+                                    {altCode && (
+                                        <span 
+                                            style={{ 
+                                                position: 'absolute', 
+                                                right: '6px', 
+                                                fontSize: '12px',
+                                                pointerEvents: 'none'
+                                            }}
+                                            title={altInPrison ? 'In prison' : 'Free'}
+                                        >
+                                            {altInPrison ? '🔒' : '🔓'}
+                                        </span>
+                                    )}
+                                </div>
                                 <input
                                     type="number"
                                     className="hud-input"

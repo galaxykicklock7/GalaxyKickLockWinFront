@@ -728,6 +728,7 @@ function UserApp() {
         onLogout={handleLogout}
         currentUser={currentUser}
         onDeploymentSuccess={startMonitoring}
+        showToast={showToast}
       />
 
       {/* 2. MAIN DASHBOARD (3 COLUMNS) - Dimmed until deployed or local test */}
