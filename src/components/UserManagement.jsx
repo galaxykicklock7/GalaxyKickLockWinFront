@@ -185,6 +185,9 @@ function UserManagement({ refreshTrigger, onTokenRenewed, onShowModal }) {
     return new Date(dateString) < new Date();
   };
 
+  // Filter out deleted users (usernames starting with DELETED_)
+  const activeUsers = users.filter(user => !user.username.startsWith('DELETED_'));
+
   if (loading) {
     return (
       <div className="user-management">
@@ -198,7 +201,7 @@ function UserManagement({ refreshTrigger, onTokenRenewed, onShowModal }) {
     <div className="user-management">
       <h2 className="user-management-title">User Management</h2>
       <p className="user-management-subtitle">
-        Total Users: {users.length}
+        Total Users: {activeUsers.length}
       </p>
 
       {error && (
@@ -208,7 +211,7 @@ function UserManagement({ refreshTrigger, onTokenRenewed, onShowModal }) {
         </div>
       )}
 
-      {users.length === 0 ? (
+      {activeUsers.length === 0 ? (
         <div className="empty-state">
           <p>No users registered yet.</p>
         </div>
@@ -225,7 +228,7 @@ function UserManagement({ refreshTrigger, onTokenRenewed, onShowModal }) {
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
+              {activeUsers.map((user) => (
                 <tr key={user.id}>
                   <td className="user-username">{user.username}</td>
                   <td>{user.subscription_months ? `${user.subscription_months} months` : 'N/A'}</td>
