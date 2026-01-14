@@ -82,6 +82,14 @@ function UserManagement({ refreshTrigger, onTokenRenewed, onShowModal, onShowCon
       const result = await deleteUser(userId);
 
       if (result.success) {
+        // Refresh token generator IMMEDIATELY if token was deleted (before showing modal)
+        if (result.token_deleted && onTokenRenewed) {
+          onTokenRenewed();
+        }
+        
+        // Refresh user list immediately
+        await fetchUsers(false);
+
         // Build success message
         let message = `User "${username}" has been deleted successfully!\n\nSessions invalidated: ${result.sessions_invalidated || 0}`;
         
@@ -94,14 +102,7 @@ function UserManagement({ refreshTrigger, onTokenRenewed, onShowModal, onShowCon
           onShowModal({
             title: 'User Deleted',
             message: message,
-            type: 'alert',
-            onClose: async () => {
-              await fetchUsers(false);
-              // Refresh token generator if token was deleted
-              if (result.token_deleted && onTokenRenewed) {
-                onTokenRenewed();
-              }
-            }
+            type: 'alert'
           });
         }
       } else {
@@ -146,18 +147,19 @@ function UserManagement({ refreshTrigger, onTokenRenewed, onShowModal, onShowCon
       const result = await deleteToken(tokenId);
 
       if (result.success) {
+        // Refresh token generator IMMEDIATELY (before showing modal)
+        if (onTokenRenewed) {
+          onTokenRenewed();
+        }
+        
+        // Refresh user list immediately
+        await fetchUsers(false);
+
         if (onShowModal) {
           onShowModal({
             title: 'Token Deleted',
             message: `Token deleted for "${username}"!\n\nSessions invalidated: ${result.sessions_invalidated || 0}\n\nUser can no longer login.`,
-            type: 'alert',
-            onClose: async () => {
-              await fetchUsers(false);
-              // Refresh token generator to remove deleted token from list
-              if (onTokenRenewed) {
-                onTokenRenewed();
-              }
-            }
+            type: 'alert'
           });
         }
       } else {
