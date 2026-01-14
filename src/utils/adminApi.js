@@ -93,7 +93,12 @@ export async function deleteUser(userId) {
     if (error) throw error;
 
     if (data.success) {
-      return { success: true, message: data.message };
+      return { 
+        success: true, 
+        message: data.message,
+        sessions_invalidated: data.sessions_invalidated,
+        token_deleted: data.token_deleted
+      };
     } else {
       return { success: false, error: data.error };
     }
@@ -113,7 +118,11 @@ export async function deleteToken(tokenId) {
     if (error) throw error;
 
     if (data.success) {
-      return { success: true, message: data.message };
+      return { 
+        success: true, 
+        message: data.message,
+        sessions_invalidated: data.sessions_invalidated
+      };
     } else {
       return { success: false, error: data.error };
     }

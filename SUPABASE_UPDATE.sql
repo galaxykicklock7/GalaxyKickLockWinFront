@@ -24,7 +24,7 @@ ALTER TABLE public.users ADD CONSTRAINT username_format
 -- =====================================================
 -- 2. UPDATE delete_user FUNCTION
 -- =====================================================
--- Properly invalidates sessions, removes token, soft deletes user
+-- Properly invalidates sessions, DELETES token, soft deletes user
 
 CREATE OR REPLACE FUNCTION public.delete_user(
   p_user_id UUID
@@ -51,13 +51,17 @@ BEGIN
   
   GET DIAGNOSTICS v_sessions_count = ROW_COUNT;
   
-  -- Step 2: Remove token reference (if exists)
+  -- Step 2: Delete the token (not just unlink)
   IF v_token_id IS NOT NULL THEN
+    -- First remove token reference from user
     UPDATE public.users
     SET token_id = NULL,
         subscription_months = NULL,
         token_expiry_date = NOW() - INTERVAL '1 day'
     WHERE id = p_user_id;
+    
+    -- Then delete the token completely
+    DELETE FROM public.tokens WHERE id = v_token_id;
   END IF;
   
   -- Step 3: Mark user as deleted (soft delete to prevent username reuse)
@@ -69,9 +73,10 @@ BEGIN
   
   RETURN json_build_object(
     'success', true, 
-    'message', 'User deleted successfully',
+    'message', 'User and token deleted successfully',
     'username', v_username,
-    'sessions_invalidated', v_sessions_count
+    'sessions_invalidated', v_sessions_count,
+    'token_deleted', v_token_id IS NOT NULL
   );
   
 EXCEPTION

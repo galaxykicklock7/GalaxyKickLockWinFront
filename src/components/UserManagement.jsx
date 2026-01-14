@@ -82,13 +82,25 @@ function UserManagement({ refreshTrigger, onTokenRenewed, onShowModal, onShowCon
       const result = await deleteUser(userId);
 
       if (result.success) {
+        // Build success message
+        let message = `User "${username}" has been deleted successfully!\n\nSessions invalidated: ${result.sessions_invalidated || 0}`;
+        
+        // Add token deletion info if token was deleted
+        if (result.token_deleted) {
+          message += '\n✅ User token also deleted';
+        }
+
         if (onShowModal) {
           onShowModal({
             title: 'User Deleted',
-            message: `User "${username}" has been deleted successfully!\n\nSessions invalidated: ${result.sessions_invalidated || 0}`,
+            message: message,
             type: 'alert',
             onClose: async () => {
               await fetchUsers(false);
+              // Refresh token generator if token was deleted
+              if (result.token_deleted && onTokenRenewed) {
+                onTokenRenewed();
+              }
             }
           });
         }
@@ -141,6 +153,10 @@ function UserManagement({ refreshTrigger, onTokenRenewed, onShowModal, onShowCon
             type: 'alert',
             onClose: async () => {
               await fetchUsers(false);
+              // Refresh token generator to remove deleted token from list
+              if (onTokenRenewed) {
+                onTokenRenewed();
+              }
             }
           });
         }
