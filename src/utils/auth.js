@@ -1,4 +1,6 @@
 import { supabase } from './supabase';
+import rateLimiter from './rateLimiter';
+import { validateUsername, validatePassword, validateToken, detectSQLInjection } from './inputValidator';
 
 /**
  * Register a new user
@@ -10,34 +12,45 @@ import { supabase } from './supabase';
  */
 export const registerUser = async (username, password, confirmPassword, token) => {
   try {
-    // Client-side validation
-    if (!username || !password || !confirmPassword || !token) {
-      const missing = [];
-      if (!username) missing.push('username');
-      if (!password) missing.push('password');
-      if (!confirmPassword) missing.push('password confirmation');
-      if (!token) missing.push('access token');
-      return { success: false, error: `Please provide: ${missing.join(', ')}` };
+    // Rate limiting check
+    const rateCheck = rateLimiter.isAllowed('signup', 3, 300000); // 3 attempts per 5 minutes
+    if (!rateCheck.allowed) {
+      return { 
+        success: false, 
+        error: `Too many signup attempts. Please try again in ${rateCheck.remainingSeconds} seconds.` 
+      };
     }
 
-    const trimmedUsername = username.trim();
-    const trimmedToken = token.trim();
+    // Record attempt
+    rateLimiter.recordAttempt('signup');
 
-    if (trimmedUsername.length < 3 || trimmedUsername.length > 50) {
-      return { success: false, error: 'Username must be between 3 and 50 characters' };
+    // Validate inputs
+    const usernameValidation = validateUsername(username);
+    if (!usernameValidation.valid) {
+      return { success: false, error: usernameValidation.error };
     }
 
-    if (!/^[a-zA-Z0-9_-]+$/.test(trimmedUsername)) {
-      return { success: false, error: 'Username can only contain letters, numbers, underscores, and hyphens' };
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.valid) {
+      return { success: false, error: passwordValidation.error };
     }
 
-    if (password.length < 8) {
-      return { success: false, error: 'Password must be at least 8 characters' };
+    const tokenValidation = validateToken(token);
+    if (!tokenValidation.valid) {
+      return { success: false, error: tokenValidation.error };
     }
 
     if (password !== confirmPassword) {
       return { success: false, error: 'Passwords do not match' };
     }
+
+    // Check for SQL injection attempts
+    if (detectSQLInjection(username) || detectSQLInjection(token)) {
+      return { success: false, error: 'Invalid characters detected' };
+    }
+
+    const trimmedUsername = usernameValidation.value;
+    const trimmedToken = tokenValidation.value;
 
     // Call Supabase function to register user
     const { data, error } = await supabase.rpc('register_user', {
@@ -80,6 +93,9 @@ export const registerUser = async (username, password, confirmPassword, token) =
       return { success: false, error: errorMsg };
     }
 
+    // Success - reset rate limiter
+    rateLimiter.reset('signup');
+
     return { success: true, data };
   } catch (err) {
     console.error('Registration exception:', err);
@@ -100,16 +116,35 @@ export const registerUser = async (username, password, confirmPassword, token) =
  */
 export const loginUser = async (username, password) => {
   try {
-    // Client-side validation
-    if (!username || !password) {
-      return { success: false, error: 'Please enter both username and password' };
+    // Rate limiting check
+    const rateCheck = rateLimiter.isAllowed('login', 5, 60000); // 5 attempts per minute
+    if (!rateCheck.allowed) {
+      return { 
+        success: false, 
+        error: `Too many login attempts. Please try again in ${rateCheck.remainingSeconds} seconds.` 
+      };
     }
 
-    const trimmedUsername = username.trim();
+    // Record attempt
+    rateLimiter.recordAttempt('login');
 
-    if (trimmedUsername.length < 3) {
-      return { success: false, error: 'Username must be at least 3 characters' };
+    // Validate inputs
+    const usernameValidation = validateUsername(username);
+    if (!usernameValidation.valid) {
+      return { success: false, error: 'Invalid username or password' }; // Don't reveal specific error
     }
+
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.valid) {
+      return { success: false, error: 'Invalid username or password' }; // Don't reveal specific error
+    }
+
+    // Check for SQL injection attempts
+    if (detectSQLInjection(username)) {
+      return { success: false, error: 'Invalid characters detected' };
+    }
+
+    const trimmedUsername = usernameValidation.value;
 
     // Call Supabase function to authenticate user
     const { data, error } = await supabase.rpc('authenticate_user', {
@@ -160,6 +195,9 @@ export const loginUser = async (username, password) => {
     };
 
     localStorage.setItem('galaxyKickLockSession', JSON.stringify(session));
+
+    // Success - reset rate limiter
+    rateLimiter.reset('login');
 
     return { success: true, data: session };
   } catch (err) {
