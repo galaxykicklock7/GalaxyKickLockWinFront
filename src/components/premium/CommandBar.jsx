@@ -313,23 +313,28 @@ const CommandBar = ({
         }
     };
 
+    // Check if we're in development mode
+    const isDevelopment = import.meta.env.DEV;
+
     return (
         <div className="command-bar">
             {/* LEFT: ACTION CLUSTER */}
             <div className="action-cluster">
-                {/* LOCAL TEST Button - Always visible */}
-                <button
-                    className={`hex-btn ${localTestMode ? 'btn-undeploy' : 'btn-local-test'}`}
-                    onClick={handleLocalTest}
-                    disabled={deploymentStatus === 'deployed' && !localTestMode}
-                    title={localTestMode ? 'Disable Local Test Mode' : 'Enable Local Test Mode (localhost:3000)'}
-                    style={{
-                        backgroundColor: localTestMode ? '#ff6b35' : '#4a90e2',
-                        borderColor: localTestMode ? '#ff6b35' : '#4a90e2'
-                    }}
-                >
-                    <FaWifi /> {localTestMode ? 'LOCAL: ON' : 'LOCAL TEST'}
-                </button>
+                {/* LOCAL TEST Button - Only visible in development */}
+                {isDevelopment && (
+                    <button
+                        className={`hex-btn ${localTestMode ? 'btn-undeploy' : 'btn-local-test'}`}
+                        onClick={handleLocalTest}
+                        disabled={deploymentStatus === 'deployed' && !localTestMode}
+                        title={localTestMode ? 'Disable Local Test Mode' : 'Enable Local Test Mode (localhost:3000)'}
+                        style={{
+                            backgroundColor: localTestMode ? '#ff6b35' : '#4a90e2',
+                            borderColor: localTestMode ? '#ff6b35' : '#4a90e2'
+                        }}
+                    >
+                        <FaWifi /> {localTestMode ? 'LOCAL: ON' : 'LOCAL TEST'}
+                    </button>
+                )}
 
                 {/* DEPLOY/UNDEPLOY Button - Only visible when not in local test mode */}
                 {!localTestMode && (
