@@ -300,12 +300,9 @@ function UserApp() {
 
       const session = getSession();
       if (!session) {
-        // Session expired or invalid locally
+        // Session expired or invalid locally - perform cleanup
         hasLoggedOutRef.current = true;
-        showToast('Your session has expired. Please sign in again.', 'error');
-        setAuthenticated(false);
-        setCurrentUser(null);
-        disconnect();
+        await performAutoCleanup('Your session has expired');
         return;
       }
 
@@ -314,13 +311,71 @@ function UserApp() {
       const result = await validateSessionWithBackend();
       
       if (!result.valid) {
-        // Session invalidated on backend (logged in on another device/browser)
+        // Session invalidated on backend (admin revoked token or logged in elsewhere)
         hasLoggedOutRef.current = true;
-        showToast('You have been logged in on another device', 'info');
-        setAuthenticated(false);
-        setCurrentUser(null);
-        disconnect();
+        await performAutoCleanup(result.reason || 'Your access has been revoked');
       }
+    };
+
+    // Auto-cleanup function when session is invalidated
+    const performAutoCleanup = async (reason) => {
+      console.log('🔒 Session invalidated, performing auto-cleanup...');
+      
+      try {
+        // 1. Disconnect if connected
+        if (connected) {
+          try {
+            await disconnect();
+          } catch (err) {
+            console.warn('Disconnect failed during auto-cleanup:', err);
+          }
+        }
+
+        // 2. Cancel workflow and clear deployment if active
+        const isDeployed = localStorage.getItem('deploymentStatus') === 'deployed';
+        const workflowRunId = localStorage.getItem('workflowRunId');
+        
+        if (isDeployed || workflowRunId) {
+          try {
+            const { cancelWorkflowRun, getLatestRunningWorkflowId } = await import('./utils/github');
+            
+            let runIdToCancel = workflowRunId ? parseInt(workflowRunId) : null;
+            
+            if (!runIdToCancel) {
+              runIdToCancel = await getLatestRunningWorkflowId();
+            }
+            
+            if (runIdToCancel) {
+              console.log('🛑 Cancelling workflow:', runIdToCancel);
+              await cancelWorkflowRun(runIdToCancel);
+            }
+          } catch (err) {
+            console.warn('Failed to cancel workflow during auto-cleanup:', err);
+          }
+
+          // Clear deployment state
+          localStorage.removeItem('deploymentStatus');
+          localStorage.removeItem('workflowRunId');
+          localStorage.removeItem('backendSubdomain');
+          localStorage.removeItem('localTestMode');
+
+          const { clearBackendUrl } = await import('./utils/backendUrl');
+          clearBackendUrl();
+
+          stopMonitoring();
+
+          window.dispatchEvent(new CustomEvent('deploymentStatusChanged', {
+            detail: { status: 'idle' }
+          }));
+        }
+      } catch (err) {
+        console.error('Auto-cleanup failed:', err);
+      }
+      
+      // 3. Logout
+      setAuthenticated(false);
+      setCurrentUser(null);
+      showToast(reason, 'error');
     };
 
     // Check every 30 seconds (faster than 5 minutes)

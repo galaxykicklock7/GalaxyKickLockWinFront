@@ -277,13 +277,13 @@ export const isAuthenticated = () => {
 
 /**
  * Validate session with backend
- * @returns {Promise<{valid: boolean, error?: string}>}
+ * @returns {Promise<{valid: boolean, reason?: string, error?: string}>}
  */
 export const validateSessionWithBackend = async () => {
   try {
     const session = getSession();
     if (!session || !session.session_token) {
-      return { valid: false, error: 'No session found' };
+      return { valid: false, reason: 'Session expired' };
     }
 
     const { data, error } = await supabase.rpc('validate_session', {
@@ -293,14 +293,20 @@ export const validateSessionWithBackend = async () => {
     if (error) {
       console.error('Session validation error:', error);
       logoutUser();
-      return { valid: false, error: error.message };
+      return { valid: false, reason: 'Session expired' };
     }
 
     if (!data || !data.valid) {
       // Session is invalid, clear local storage
       console.warn('Session validation failed:', data?.error || 'Session invalid');
       logoutUser();
-      return { valid: false, error: data?.error || 'Session invalid' };
+      
+      // Check if it's a token revocation
+      if (data?.error && (data.error.includes('revoked') || data.error.includes('deleted'))) {
+        return { valid: false, reason: 'Your access has been revoked by admin' };
+      }
+      
+      return { valid: false, reason: 'Session expired' };
     }
 
     // Additional check: verify the user's token still exists and is valid
@@ -308,14 +314,14 @@ export const validateSessionWithBackend = async () => {
     if (data.token_deleted || data.token_invalid) {
       console.warn('Token has been deleted or invalidated by admin');
       logoutUser();
-      return { valid: false, error: 'Your access token has been revoked. Please contact support.' };
+      return { valid: false, reason: 'Your access has been revoked by admin' };
     }
 
     return { valid: true };
   } catch (err) {
     console.error('Session validation exception:', err);
     logoutUser();
-    return { valid: false, error: err.message };
+    return { valid: false, reason: 'Session expired' };
   }
 };
 
