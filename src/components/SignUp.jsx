@@ -16,6 +16,18 @@ function SignUp({ onSuccess, onSwitchToSignIn }) {
   const [success, setSuccess] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
   const [showQRModal, setShowQRModal] = useState(false);
+  const [hasSeenQR, setHasSeenQR] = useState(false);
+
+  const handleTokenFocus = () => {
+    if (!hasSeenQR) {
+      setShowQRModal(true);
+    }
+  };
+
+  const handleCloseQR = () => {
+    setShowQRModal(false);
+    setHasSeenQR(true);
+  };
 
   // Calculate password strength
   const calculatePasswordStrength = (pwd) => {
@@ -135,22 +147,23 @@ function SignUp({ onSuccess, onSwitchToSignIn }) {
   };
 
   return (
-    <div className="auth-form">
-      <h2 className="auth-title">Create Account</h2>
+    <>
+      <div className="auth-form">
+        <h2 className="auth-title">Create Account</h2>
 
-      {error && (
-        <div className="auth-error">
-          <span className="error-icon">⚠️</span>
-          {error}
-        </div>
-      )}
+        {error && (
+          <div className="auth-error">
+            <span className="error-icon">⚠️</span>
+            {error}
+          </div>
+        )}
 
-      {success && (
-        <div className="auth-success">
-          <span className="success-icon">✓</span>
-          Account created successfully! Redirecting to sign in...
-        </div>
-      )}
+        {success && (
+          <div className="auth-success">
+            <span className="success-icon">✓</span>
+            Account created successfully! Redirecting to sign in...
+          </div>
+        )}
 
       <form onSubmit={handleSubmit}>
         <div className="form-group">
@@ -261,7 +274,7 @@ function SignUp({ onSuccess, onSwitchToSignIn }) {
             id="token"
             value={token}
             onChange={(e) => setToken(e.target.value)}
-            onFocus={() => setShowQRModal(true)}
+            onFocus={handleTokenFocus}
             placeholder="Enter your access token"
             required
             disabled={loading || success}
@@ -293,83 +306,84 @@ function SignUp({ onSuccess, onSwitchToSignIn }) {
           </button>
         </p>
       </div>
+    </div>
 
-      {/* QR Code Modal */}
-      {showQRModal && (
-        <div className="qr-modal-overlay" onClick={() => setShowQRModal(false)}>
-          <div className="qr-modal-content" onClick={(e) => e.stopPropagation()}>
-            <button className="qr-modal-close" onClick={() => setShowQRModal(false)}>×</button>
-            
-            <div className="qr-modal-header">
-              <span className="qr-icon">💬</span>
-              <h3>Need a Token?</h3>
-            </div>
-            
-            <p className="qr-modal-description">
-              Connect with our admin on Discord to get your access token
-            </p>
-            
-            <div className="qr-code-wrapper">
-              <img 
-                src="/discord-qr.png" 
-                alt="Discord QR Code - Add galaxykicklock as friend" 
-                className="discord-qr-image"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.nextElementSibling.style.display = 'flex';
-                }}
-              />
-              <div className="qr-placeholder" style={{ display: 'flex' }}>
-                <div className="qr-placeholder-content">
-                  <div className="qr-box">
-                    <div className="qr-corner qr-corner-tl"></div>
-                    <div className="qr-corner qr-corner-tr"></div>
-                    <div className="qr-corner qr-corner-bl"></div>
-                    <div className="qr-corner qr-corner-br"></div>
-                    <div className="qr-pattern">
-                      <div className="qr-dot"></div>
-                      <div className="qr-dot"></div>
-                      <div className="qr-dot"></div>
-                      <div className="qr-dot"></div>
-                      <div className="qr-dot"></div>
-                      <div className="qr-dot"></div>
-                      <div className="qr-dot"></div>
-                      <div className="qr-dot"></div>
-                      <div className="qr-dot"></div>
-                    </div>
+    {/* QR Code Modal - Rendered outside auth-form */}
+    {showQRModal && (
+      <div className="qr-modal-overlay" onClick={handleCloseQR}>
+        <div className="qr-modal-content" onClick={(e) => e.stopPropagation()}>
+          <button className="qr-modal-close" onClick={handleCloseQR}>×</button>
+          
+          <div className="qr-modal-header">
+            <span className="qr-icon">💬</span>
+            <h3>Need a Token?</h3>
+          </div>
+          
+          <p className="qr-modal-description">
+            Connect with our admin on Discord to get your access token
+          </p>
+          
+          <div className="qr-code-wrapper">
+            <img 
+              src="/discord-qr.png" 
+              alt="Discord QR Code - Add galaxykicklock as friend" 
+              className="discord-qr-image"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.nextElementSibling.style.display = 'flex';
+              }}
+            />
+            <div className="qr-placeholder" style={{ display: 'flex' }}>
+              <div className="qr-placeholder-content">
+                <div className="qr-box">
+                  <div className="qr-corner qr-corner-tl"></div>
+                  <div className="qr-corner qr-corner-tr"></div>
+                  <div className="qr-corner qr-corner-bl"></div>
+                  <div className="qr-corner qr-corner-br"></div>
+                  <div className="qr-pattern">
+                    <div className="qr-dot"></div>
+                    <div className="qr-dot"></div>
+                    <div className="qr-dot"></div>
+                    <div className="qr-dot"></div>
+                    <div className="qr-dot"></div>
+                    <div className="qr-dot"></div>
+                    <div className="qr-dot"></div>
+                    <div className="qr-dot"></div>
+                    <div className="qr-dot"></div>
                   </div>
-                  <p style={{ marginTop: '16px', fontSize: '0.875rem', color: 'rgba(148, 163, 184, 0.9)' }}>
-                    Scan QR Code to add<br/><strong style={{ color: '#60a5fa' }}>galaxykicklock</strong><br/>on Discord
-                  </p>
                 </div>
+                <p style={{ marginTop: '16px', fontSize: '0.875rem', color: 'rgba(148, 163, 184, 0.9)' }}>
+                  Scan QR Code to add<br/><strong style={{ color: '#60a5fa' }}>galaxykicklock</strong><br/>on Discord
+                </p>
               </div>
             </div>
-            
-            <div className="qr-instructions">
-              <p className="qr-step">
-                <span className="step-number">1</span>
-                Scan QR code with Discord app
-              </p>
-              <p className="qr-step">
-                <span className="step-number">2</span>
-                Add <strong>galaxykicklock</strong> as friend
-              </p>
-              <p className="qr-step">
-                <span className="step-number">3</span>
-                Request your access token
-              </p>
-            </div>
-            
-            <button 
-              className="qr-modal-button" 
-              onClick={() => setShowQRModal(false)}
-            >
-              Got it, close
-            </button>
           </div>
+          
+          <div className="qr-instructions">
+            <p className="qr-step">
+              <span className="step-number">1</span>
+              Scan QR code with Discord app
+            </p>
+            <p className="qr-step">
+              <span className="step-number">2</span>
+              Add <strong>galaxykicklock</strong> as friend
+            </p>
+            <p className="qr-step">
+              <span className="step-number">3</span>
+              Request your access token
+            </p>
+          </div>
+          
+          <button 
+            className="qr-modal-button" 
+            onClick={handleCloseQR}
+          >
+            Got it, close
+          </button>
         </div>
-      )}
-    </div>
+      </div>
+    )}
+  </>
   );
 }
 
