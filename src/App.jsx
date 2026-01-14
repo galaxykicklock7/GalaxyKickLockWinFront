@@ -735,6 +735,7 @@ function UserApp() {
           config={config}
           onConfigChange={handleConfigChange}
           status={status}
+          connected={connected}
         />
 
         {/* Middle: Core Systems */}

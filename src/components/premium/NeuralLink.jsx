@@ -2,7 +2,7 @@ import React from 'react';
 import { FaFingerprint, FaShieldAlt, FaCrosshairs, FaSkullCrossbones } from 'react-icons/fa';
 import './PremiumLayout.css';
 
-const NeuralLink = ({ config, onConfigChange, status }) => {
+const NeuralLink = ({ config, onConfigChange, status, connected }) => {
     // Get prison status from backend status
     // Backend should return: { prisonStatus: { "actualcode1": true, "actualcode2": false, ... } }
     const prisonStatus = status?.prisonStatus || {};
@@ -51,6 +51,8 @@ const NeuralLink = ({ config, onConfigChange, status }) => {
                                         onChange={(e) => onConfigChange(`rc${num}`, e.target.value)}
                                         placeholder="PRIMARY"
                                         style={{ color: '#fff', paddingRight: '22px' }}
+                                        disabled={connected}
+                                        title={connected ? 'Disconnect to edit recovery codes' : 'Primary recovery code'}
                                     />
                                     {primaryCode && primaryCode.trim() !== '' && (
                                         <span 
@@ -75,6 +77,8 @@ const NeuralLink = ({ config, onConfigChange, status }) => {
                                         onChange={(e) => onConfigChange(`rcl${num}`, e.target.value)}
                                         placeholder="ALT"
                                         style={{ color: '#fff', paddingRight: '22px' }}
+                                        disabled={connected}
+                                        title={connected ? 'Disconnect to edit recovery codes' : 'Alternate recovery code'}
                                     />
                                     {altCode && altCode.trim() !== '' && (
                                         <span 
