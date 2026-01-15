@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import rateLimiter from './rateLimiter';
 import { validateUsername, validatePassword, validateToken, detectSQLInjection } from './inputValidator';
+import { storageManager } from './storageManager';
 
 /**
  * Register a new user
@@ -182,7 +183,7 @@ export const loginUser = async (username, password) => {
       return { success: false, error: 'Login failed. Invalid session data.' };
     }
 
-    // Store session in localStorage
+    // Store session using universal storage manager
     const session = {
       user_id: data.user_id,
       username: data.username,
@@ -194,7 +195,18 @@ export const loginUser = async (username, password) => {
       login_time: new Date().toISOString(),
     };
 
-    localStorage.setItem('galaxyKickLockSession', JSON.stringify(session));
+    // Use storage manager for cross-platform compatibility
+    const stored = storageManager.setItem('galaxyKickLockSession', session);
+    
+    if (!stored) {
+      console.error('Failed to store session in any storage location');
+      const diagnostics = storageManager.getDiagnostics();
+      console.error('Storage diagnostics:', diagnostics);
+      return { 
+        success: false, 
+        error: 'Unable to save session. Please enable cookies and storage in your browser settings.' 
+      };
+    }
 
     // Success - reset rate limiter
     rateLimiter.reset('login');
@@ -226,9 +238,9 @@ export const logoutUser = async () => {
   } catch (error) {
     console.error('Logout error:', error);
   } finally {
-    // Always clear local storage
-    localStorage.removeItem('galaxyKickLockSession');
-    localStorage.removeItem('galaxyKickLockConfig');
+    // Always clear all storage locations using storage manager
+    storageManager.removeItem('galaxyKickLockSession');
+    storageManager.removeItem('galaxyKickLockConfig');
   }
 };
 
@@ -245,9 +257,9 @@ export const logoutAllSessions = async () => {
 
       if (error) throw error;
 
-      // Clear local storage
-      localStorage.removeItem('galaxyKickLockSession');
-      localStorage.removeItem('galaxyKickLockConfig');
+      // Clear all storage locations using storage manager
+      storageManager.removeItem('galaxyKickLockSession');
+      storageManager.removeItem('galaxyKickLockConfig');
 
       return { success: true, data };
     }
@@ -264,7 +276,9 @@ export const logoutAllSessions = async () => {
  */
 export const getSession = () => {
   try {
-    const sessionStr = localStorage.getItem('galaxyKickLockSession');
+    // Use universal storage manager to retrieve session
+    const sessionStr = storageManager.getItem('galaxyKickLockSession');
+    
     if (!sessionStr) return null;
 
     const session = JSON.parse(sessionStr);

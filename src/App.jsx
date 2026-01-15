@@ -4,6 +4,7 @@ import { useBackendStatus } from './hooks/useBackendStatus';
 import { useWorkflowMonitor } from './hooks/useWorkflowMonitor';
 import { isAuthenticated, logoutUser, getSession } from './utils/auth';
 import { isAdminAuthenticated } from './utils/adminAuth';
+import { storageManager } from './utils/storageManager';
 import LandingPage from './pages/LandingPage';
 import AdminLandingPage from './pages/AdminLandingPage';
 import AdminDashboard from './pages/AdminDashboard';
@@ -61,13 +62,14 @@ function UserApp() {
   // Use ref to track if we've already logged out to prevent spam
   const hasLoggedOutRef = useRef(false);
 
-  // Load config from localStorage or use defaults
+  // Load config from storage or use defaults
   const getInitialConfig = () => {
-    const savedConfig = localStorage.getItem('galaxyKickLockConfig');
+    const savedConfig = storageManager.getItem('galaxyKickLockConfig');
     if (savedConfig) {
       try {
         return JSON.parse(savedConfig);
       } catch (err) {
+        console.warn('Failed to parse saved config:', err);
       }
     }
     // Return default config if nothing saved
@@ -171,7 +173,7 @@ function UserApp() {
 
     // If authenticated, claim this tab as active
     if (isAuthenticated()) {
-      localStorage.setItem('activeTabId', tabId);
+      storageManager.setItem('activeTabId', tabId);
     }
 
     // Save config before page unload AND show warning
@@ -179,12 +181,12 @@ function UserApp() {
       if (window.configUpdateTimer) {
         clearTimeout(window.configUpdateTimer);
       }
-      // Save current config immediately
-      localStorage.setItem('galaxyKickLockConfig', JSON.stringify(config));
+      // Save current config immediately using storage manager
+      storageManager.setItem('galaxyKickLockConfig', config);
       
       // CRITICAL: Check if system is active before showing warning
-      const isDeployed = localStorage.getItem('deploymentStatus') === 'deployed';
-      const workflowRunId = localStorage.getItem('workflowRunId');
+      const isDeployed = storageManager.getItem('deploymentStatus') === 'deployed';
+      const workflowRunId = storageManager.getItem('workflowRunId');
       
       if (isDeployed || workflowRunId) {
         // Show browser's default warning
@@ -199,8 +201,8 @@ function UserApp() {
 
     // Handle actual page unload (user confirmed they want to leave)
     const handleUnload = async () => {
-      const isDeployed = localStorage.getItem('deploymentStatus') === 'deployed';
-      const workflowRunId = localStorage.getItem('workflowRunId');
+      const isDeployed = storageManager.getItem('deploymentStatus') === 'deployed';
+      const workflowRunId = storageManager.getItem('workflowRunId');
       
       if (isDeployed || workflowRunId) {
         try {
@@ -250,6 +252,7 @@ function UserApp() {
               showToast('You have been logged in on another device/tab', 'info');
             }
           } catch (err) {
+            console.warn('Failed to parse session change:', err);
           }
         }
       } else if (e.key === 'activeTabId' && e.newValue) {
@@ -272,17 +275,17 @@ function UserApp() {
       window.removeEventListener('unload', handleUnload);
       window.removeEventListener('storage', handleStorageChange);
       
-      // Save config on unmount
+      // Save config on unmount using storage manager
       if (window.configUpdateTimer) {
         clearTimeout(window.configUpdateTimer);
       }
-      localStorage.setItem('galaxyKickLockConfig', JSON.stringify(config));
+      storageManager.setItem('galaxyKickLockConfig', config);
       
       // Clear active tab if this was it
       const currentTabId = sessionStorage.getItem('tabId');
-      const activeTabId = localStorage.getItem('activeTabId');
+      const activeTabId = storageManager.getItem('activeTabId');
       if (currentTabId === activeTabId) {
-        localStorage.removeItem('activeTabId');
+        storageManager.removeItem('activeTabId');
       }
     };
   }, [config]); // Add config as dependency
@@ -329,8 +332,8 @@ function UserApp() {
         }
 
         // 2. Cancel workflow and clear deployment if active
-        const isDeployed = localStorage.getItem('deploymentStatus') === 'deployed';
-        const workflowRunId = localStorage.getItem('workflowRunId');
+        const isDeployed = storageManager.getItem('deploymentStatus') === 'deployed';
+        const workflowRunId = storageManager.getItem('workflowRunId');
         
         if (isDeployed || workflowRunId) {
           try {
@@ -350,11 +353,11 @@ function UserApp() {
             console.warn('Failed to cancel workflow during auto-cleanup:', err);
           }
 
-          // Clear deployment state
-          localStorage.removeItem('deploymentStatus');
-          localStorage.removeItem('workflowRunId');
-          localStorage.removeItem('backendSubdomain');
-          localStorage.removeItem('localTestMode');
+          // Clear deployment state using storage manager
+          storageManager.removeItem('deploymentStatus');
+          storageManager.removeItem('workflowRunId');
+          storageManager.removeItem('backendSubdomain');
+          storageManager.removeItem('localTestMode');
 
           const { clearBackendUrl } = await import('./utils/backendUrl');
           clearBackendUrl();
@@ -402,7 +405,18 @@ function UserApp() {
     // Set this tab as the active tab on login
     const tabId = sessionStorage.getItem('tabId') || `tab_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     sessionStorage.setItem('tabId', tabId);
-    localStorage.setItem('activeTabId', tabId);
+    storageManager.setItem('activeTabId', tabId);
+    
+    // Universal storage verification
+    setTimeout(() => {
+      const verifySession = getSession();
+      if (!verifySession) {
+        console.error('Session verification failed - storage may be blocked');
+        const diagnostics = storageManager.getDiagnostics();
+        console.error('Storage diagnostics:', diagnostics);
+        showToast('Warning: Session may not persist. Please enable cookies and storage.', 'warning');
+      }
+    }, 100);
     
     setCurrentUser(userData);
     setAuthenticated(true);
@@ -411,7 +425,7 @@ function UserApp() {
 
   const handleLogout = async () => {
     // Check if user is still connected or deployed
-    const isDeployed = localStorage.getItem('deploymentStatus') === 'deployed';
+    const isDeployed = storageManager.getItem('deploymentStatus') === 'deployed';
     
     if (connected || isDeployed) {
       // Show warning modal with auto-cleanup option
@@ -446,8 +460,8 @@ function UserApp() {
       }
 
       // 2. Cancel workflow and clear deployment if active
-      const isDeployed = localStorage.getItem('deploymentStatus') === 'deployed';
-      const workflowRunId = localStorage.getItem('workflowRunId');
+      const isDeployed = storageManager.getItem('deploymentStatus') === 'deployed';
+      const workflowRunId = storageManager.getItem('workflowRunId');
       
       if (isDeployed || workflowRunId) {
         try {
@@ -468,11 +482,11 @@ function UserApp() {
           console.warn('Failed to cancel workflow during logout:', err);
         }
 
-        // Clear deployment state
-        localStorage.removeItem('deploymentStatus');
-        localStorage.removeItem('workflowRunId');
-        localStorage.removeItem('backendSubdomain');
-        localStorage.removeItem('localTestMode');
+        // Clear deployment state using storage manager
+        storageManager.removeItem('deploymentStatus');
+        storageManager.removeItem('workflowRunId');
+        storageManager.removeItem('backendSubdomain');
+        storageManager.removeItem('localTestMode');
 
         // Clear backend URL
         const { clearBackendUrl } = await import('./utils/backendUrl');
@@ -542,8 +556,8 @@ function UserApp() {
         }
       }
 
-      // Save and send immediately
-      localStorage.setItem('galaxyKickLockConfig', JSON.stringify(newConfig));
+      // Save and send immediately using storage manager
+      storageManager.setItem('galaxyKickLockConfig', newConfig);
       updateConfig(newConfig);
 
       return newConfig;
@@ -729,7 +743,7 @@ function UserApp() {
       />
 
       {/* 2. MAIN DASHBOARD (3 COLUMNS) - Dimmed until deployed or local test */}
-      <div className={`main-dashboard ${localStorage.getItem('deploymentStatus') !== 'deployed' && localStorage.getItem('localTestMode') !== 'true' ? 'dashboard-disabled' : ''}`}>
+      <div className={`main-dashboard ${storageManager.getItem('deploymentStatus') !== 'deployed' && storageManager.getItem('localTestMode') !== 'true' ? 'dashboard-disabled' : ''}`}>
         {/* Left: Neural Link */}
         <NeuralLink
           config={config}
@@ -753,7 +767,7 @@ function UserApp() {
       </div>
 
       {/* 3. FOOTER LOGS - Dimmed until deployed or local test */}
-      <div className={localStorage.getItem('deploymentStatus') !== 'deployed' && localStorage.getItem('localTestMode') !== 'true' ? 'logs-disabled' : ''}>
+      <div className={storageManager.getItem('deploymentStatus') !== 'deployed' && storageManager.getItem('localTestMode') !== 'true' ? 'logs-disabled' : ''}>
         <DataStreams logs={logs} />
       </div>
 
