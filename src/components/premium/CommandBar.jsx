@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaAndroid, FaApple, FaGlobe, FaSignOutAlt, FaRocket, FaWifi, FaCloudUploadAlt, FaTimesCircle } from 'react-icons/fa';
 import { triggerWorkflow, pollWorkflowUntilRunning, cancelWorkflowRun, getLatestRunningWorkflowId } from '../../utils/github';
 import { setBackendUrl, clearBackendUrl } from '../../utils/backendUrl';
+import { storageManager } from '../../utils/storageManager';
 import DeploymentModal from '../DeploymentModal';
 import ConfirmModal from '../ConfirmModal';
 import './PremiumLayout.css';
@@ -31,11 +32,11 @@ const CommandBar = ({
     const [localTestMode, setLocalTestMode] = useState(false);
     const [isReleasing, setIsReleasing] = useState(false);
 
-    // Check if deployment is already done (persisted in localStorage)
+    // Check if deployment is already done (persisted in storage)
     useEffect(() => {
-        const savedDeploymentStatus = localStorage.getItem('deploymentStatus');
-        const savedRunId = localStorage.getItem('workflowRunId');
-        const savedLocalTest = localStorage.getItem('localTestMode') === 'true';
+        const savedDeploymentStatus = storageManager.getItem('deploymentStatus');
+        const savedRunId = storageManager.getItem('workflowRunId');
+        const savedLocalTest = storageManager.getItem('localTestMode') === 'true';
         
         if (savedDeploymentStatus === 'deployed') {
             setDeploymentStatus('deployed');
@@ -97,8 +98,8 @@ const CommandBar = ({
         if (newLocalTestMode) {
             // Enable local test mode
             setBackendUrl('http://localhost:3000');
-            localStorage.setItem('localTestMode', 'true');
-            localStorage.setItem('deploymentStatus', 'deployed');
+            storageManager.setItem('localTestMode', 'true');
+            storageManager.setItem('deploymentStatus', 'deployed');
             setDeploymentStatus('deployed');
             
             // Trigger custom event
@@ -108,8 +109,8 @@ const CommandBar = ({
         } else {
             // Disable local test mode
             clearBackendUrl();
-            localStorage.removeItem('localTestMode');
-            localStorage.removeItem('deploymentStatus');
+            storageManager.removeItem('localTestMode');
+            storageManager.removeItem('deploymentStatus');
             setDeploymentStatus('idle');
             
             // Trigger custom event
@@ -184,9 +185,9 @@ const CommandBar = ({
 
             // Update the backend URL in the app
             setBackendUrl(backendUrl);
-            localStorage.setItem('backendSubdomain', subdomain);
-            localStorage.setItem('deploymentStatus', 'deployed');
-            localStorage.setItem('workflowRunId', triggerResult.run_id.toString());
+            storageManager.setItem('backendSubdomain', subdomain);
+            storageManager.setItem('deploymentStatus', 'deployed');
+            storageManager.setItem('workflowRunId', triggerResult.run_id.toString());
 
             // Step 2: Workflow triggered (20%)
             setDeploymentProgress({ percentage: 20, message: 'System initialized...' });
@@ -243,8 +244,8 @@ const CommandBar = ({
                 message: error.message || 'Deployment failed. Please try again.'
             });
             clearBackendUrl();
-            localStorage.removeItem('deploymentStatus');
-            localStorage.removeItem('workflowRunId');
+            storageManager.removeItem('deploymentStatus');
+            storageManager.removeItem('workflowRunId');
         } finally {
             setIsDeploying(false);
         }
@@ -320,9 +321,9 @@ const CommandBar = ({
                 setIsDeactivating(false);
                 setLocalTestMode(false);
                 clearBackendUrl();
-                localStorage.removeItem('deploymentStatus');
-                localStorage.removeItem('workflowRunId');
-                localStorage.removeItem('localTestMode');
+                storageManager.removeItem('deploymentStatus');
+                storageManager.removeItem('workflowRunId');
+                storageManager.removeItem('localTestMode');
                 
                 // Trigger custom event to notify components
                 window.dispatchEvent(new CustomEvent('deploymentStatusChanged', { 

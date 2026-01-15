@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiClient } from '../utils/api';
+import { storageManager } from '../utils/storageManager';
 
 export const useBackendStatus = () => {
   const [status, setStatus] = useState(null);
@@ -67,7 +68,7 @@ export const useBackendStatus = () => {
   useEffect(() => {
     // Check if backend is deployed
     const checkDeploymentAndPoll = () => {
-      const isDeployed = localStorage.getItem('deploymentStatus') === 'deployed';
+      const isDeployed = storageManager.getItem('deploymentStatus') === 'deployed';
       
       if (!isDeployed) {
         setLoading(false);
@@ -81,7 +82,7 @@ export const useBackendStatus = () => {
 
       // Poll every 1 second for real-time feel
       pollingIntervalRef.current = setInterval(() => {
-        if (localStorage.getItem('deploymentStatus') === 'deployed') {
+        if (storageManager.getItem('deploymentStatus') === 'deployed') {
           fetchStatus();
           fetchLogs();
         }

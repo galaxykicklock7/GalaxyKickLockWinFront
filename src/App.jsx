@@ -176,7 +176,7 @@ function UserApp() {
       storageManager.setItem('activeTabId', tabId);
     }
 
-    // Save config before page unload AND show warning
+    // Save config before page unload - NO WARNING, NO CANCELLATION
     const handleBeforeUnload = (e) => {
       if (window.configUpdateTimer) {
         clearTimeout(window.configUpdateTimer);
@@ -184,48 +184,14 @@ function UserApp() {
       // Save current config immediately using storage manager
       storageManager.setItem('galaxyKickLockConfig', config);
       
-      // CRITICAL: Check if system is active before showing warning
-      const isDeployed = storageManager.getItem('deploymentStatus') === 'deployed';
-      const workflowRunId = storageManager.getItem('workflowRunId');
-      
-      if (isDeployed || workflowRunId) {
-        // Show browser's default warning
-        const message = '⚠️ System is still active. Refreshing will deactivate the system and stop all connections.';
-        e.preventDefault();
-        e.returnValue = message;
-        return message;
-      }
+      // DO NOT show warning or cancel workflow on refresh
+      // User can manually deactivate if they want to stop the backend
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
 
-    // Handle actual page unload (user confirmed they want to leave)
-    const handleUnload = async () => {
-      const isDeployed = storageManager.getItem('deploymentStatus') === 'deployed';
-      const workflowRunId = storageManager.getItem('workflowRunId');
-      
-      if (isDeployed || workflowRunId) {
-        try {
-          const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN;
-          const GITHUB_OWNER = import.meta.env.VITE_GITHUB_OWNER;
-          const GITHUB_REPO = import.meta.env.VITE_GITHUB_REPO;
-          
-          let runIdToCancel = workflowRunId ? parseInt(workflowRunId) : null;
-          
-          if (runIdToCancel) {
-            // Use sendBeacon for reliable cleanup even if page closes
-            navigator.sendBeacon(
-              `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/actions/runs/${runIdToCancel}/cancel`,
-              JSON.stringify({})
-            );
-          }
-        } catch (err) {
-          console.warn('Failed to cancel workflow on unload:', err);
-        }
-      }
-    };
-
-    window.addEventListener('unload', handleUnload);
+    // DO NOT cancel workflow on page unload - let it keep running
+    // User must manually click DEACTIVATE to stop the backend
 
     // Listen for storage changes
     const handleStorageChange = (e) => {
@@ -272,7 +238,6 @@ function UserApp() {
     // Cleanup
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('unload', handleUnload);
       window.removeEventListener('storage', handleStorageChange);
       
       // Save config on unmount using storage manager
@@ -307,13 +272,20 @@ function UserApp() {
       }
 
       // Validate with backend to check if session was invalidated
-      const { validateSessionWithBackend } = await import('./utils/auth');
-      const result = await validateSessionWithBackend();
-      
-      if (!result.valid) {
-        // Session invalidated on backend (admin revoked token or logged in elsewhere)
-        hasLoggedOutRef.current = true;
-        await performAutoCleanup(result.reason || 'Your access has been revoked');
+      // BUT: Don't logout on network errors - only on explicit invalidation
+      try {
+        const { validateSessionWithBackend } = await import('./utils/auth');
+        const result = await validateSessionWithBackend();
+        
+        if (!result.valid) {
+          // Session invalidated on backend (admin revoked token or logged in elsewhere)
+          hasLoggedOutRef.current = true;
+          await performAutoCleanup(result.reason || 'Your access has been revoked');
+        }
+      } catch (error) {
+        // Network error or backend unreachable - DON'T logout
+        // Just log the error and keep session active
+        console.warn('Session validation failed (network issue), keeping session active:', error);
       }
     };
 
@@ -331,43 +303,22 @@ function UserApp() {
           }
         }
 
-        // 2. Cancel workflow and clear deployment if active
-        const isDeployed = storageManager.getItem('deploymentStatus') === 'deployed';
-        const workflowRunId = storageManager.getItem('workflowRunId');
-        
-        if (isDeployed || workflowRunId) {
-          try {
-            const { cancelWorkflowRun, getLatestRunningWorkflowId } = await import('./utils/github');
-            
-            let runIdToCancel = workflowRunId ? parseInt(workflowRunId) : null;
-            
-            if (!runIdToCancel) {
-              runIdToCancel = await getLatestRunningWorkflowId();
-            }
-            
-            if (runIdToCancel) {
-              console.log('🛑 Cancelling workflow:', runIdToCancel);
-              await cancelWorkflowRun(runIdToCancel);
-            }
-          } catch (err) {
-            console.warn('Failed to cancel workflow during auto-cleanup:', err);
-          }
+        // 2. DO NOT cancel workflow - let it keep running
+        // User can manually deactivate if needed
+        // Just clear the local state
+        storageManager.removeItem('deploymentStatus');
+        storageManager.removeItem('workflowRunId');
+        storageManager.removeItem('backendSubdomain');
+        storageManager.removeItem('localTestMode');
 
-          // Clear deployment state using storage manager
-          storageManager.removeItem('deploymentStatus');
-          storageManager.removeItem('workflowRunId');
-          storageManager.removeItem('backendSubdomain');
-          storageManager.removeItem('localTestMode');
+        const { clearBackendUrl } = await import('./utils/backendUrl');
+        clearBackendUrl();
 
-          const { clearBackendUrl } = await import('./utils/backendUrl');
-          clearBackendUrl();
+        stopMonitoring();
 
-          stopMonitoring();
-
-          window.dispatchEvent(new CustomEvent('deploymentStatusChanged', {
-            detail: { status: 'idle' }
-          }));
-        }
+        window.dispatchEvent(new CustomEvent('deploymentStatusChanged', {
+          detail: { status: 'idle' }
+        }));
       } catch (err) {
         console.error('Auto-cleanup failed:', err);
       }
@@ -378,13 +329,15 @@ function UserApp() {
       showToast(reason, 'error');
     };
 
-    // Check every 30 seconds (faster than 5 minutes)
-    const validateInterval = setInterval(validateSession, 30 * 1000);
+    // Check every 60 seconds (less aggressive)
+    const validateInterval = setInterval(validateSession, 60 * 1000);
 
     // Also check when tab becomes visible (user switches back to this tab)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        validateSession();
+        // Don't validate immediately on visibility change
+        // This prevents logout when switching tabs on mobile
+        setTimeout(validateSession, 2000);
       }
     };
 
@@ -448,7 +401,7 @@ function UserApp() {
     setShowLogoutConfirm(false);
     showToast('Logging out...', 'info');
 
-    // CRITICAL: Force cleanup to prevent cost waste
+    // DO NOT cancel workflow on logout - let backend keep running
     try {
       // 1. Disconnect if connected
       if (connected) {
@@ -459,47 +412,23 @@ function UserApp() {
         }
       }
 
-      // 2. Cancel workflow and clear deployment if active
-      const isDeployed = storageManager.getItem('deploymentStatus') === 'deployed';
-      const workflowRunId = storageManager.getItem('workflowRunId');
-      
-      if (isDeployed || workflowRunId) {
-        try {
-          // Cancel the workflow to stop backend
-          const { cancelWorkflowRun, getLatestRunningWorkflowId } = await import('./utils/github');
-          
-          let runIdToCancel = workflowRunId ? parseInt(workflowRunId) : null;
-          
-          // If no stored run ID, try to find the latest running one
-          if (!runIdToCancel) {
-            runIdToCancel = await getLatestRunningWorkflowId();
-          }
-          
-          if (runIdToCancel) {
-            await cancelWorkflowRun(runIdToCancel);
-          }
-        } catch (err) {
-          console.warn('Failed to cancel workflow during logout:', err);
-        }
+      // 2. Just clear local state - DO NOT cancel workflow
+      storageManager.removeItem('deploymentStatus');
+      storageManager.removeItem('workflowRunId');
+      storageManager.removeItem('backendSubdomain');
+      storageManager.removeItem('localTestMode');
 
-        // Clear deployment state using storage manager
-        storageManager.removeItem('deploymentStatus');
-        storageManager.removeItem('workflowRunId');
-        storageManager.removeItem('backendSubdomain');
-        storageManager.removeItem('localTestMode');
+      // Clear backend URL
+      const { clearBackendUrl } = await import('./utils/backendUrl');
+      clearBackendUrl();
 
-        // Clear backend URL
-        const { clearBackendUrl } = await import('./utils/backendUrl');
-        clearBackendUrl();
+      // Stop workflow monitoring
+      stopMonitoring();
 
-        // Stop workflow monitoring
-        stopMonitoring();
-
-        // Emit event to reset UI
-        window.dispatchEvent(new CustomEvent('deploymentStatusChanged', {
-          detail: { status: 'idle' }
-        }));
-      }
+      // Emit event to reset UI
+      window.dispatchEvent(new CustomEvent('deploymentStatusChanged', {
+        detail: { status: 'idle' }
+      }));
     } catch (err) {
       console.error('Cleanup failed during logout:', err);
     }

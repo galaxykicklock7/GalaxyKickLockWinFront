@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getWorkflowRunStatus } from '../utils/github';
 import { clearBackendUrl } from '../utils/backendUrl';
+import { storageManager } from '../utils/storageManager';
 
 /**
  * Custom hook to monitor GitHub workflow status
@@ -11,10 +12,10 @@ export const useWorkflowMonitor = (showToast) => {
   const [workflowRunId, setWorkflowRunId] = useState(null);
 
   const resetDeploymentState = useCallback((reason) => {
-    // Clear deployment state
-    localStorage.removeItem('deploymentStatus');
-    localStorage.removeItem('workflowRunId');
-    localStorage.removeItem('backendSubdomain');
+    // Clear deployment state using storage manager
+    storageManager.removeItem('deploymentStatus');
+    storageManager.removeItem('workflowRunId');
+    storageManager.removeItem('backendSubdomain');
     clearBackendUrl();
 
     // Emit event to reset UI
@@ -68,8 +69,8 @@ export const useWorkflowMonitor = (showToast) => {
 
   // Start monitoring when deployment is active
   useEffect(() => {
-    const savedDeploymentStatus = localStorage.getItem('deploymentStatus');
-    const savedRunId = localStorage.getItem('workflowRunId');
+    const savedDeploymentStatus = storageManager.getItem('deploymentStatus');
+    const savedRunId = storageManager.getItem('workflowRunId');
     
     if (savedDeploymentStatus === 'deployed' && savedRunId) {
       setWorkflowRunId(parseInt(savedRunId));
