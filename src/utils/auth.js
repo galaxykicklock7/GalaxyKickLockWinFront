@@ -290,31 +290,31 @@ export const getSession = () => {
       return null;
     }
 
-    // Check if session is expired (24 hours)
+    // NO AUTOMATIC EXPIRY CHECKS
+    // Session persists until manual logout or admin revocation
+    // This prevents unexpected logouts on mobile devices
+    
+    // Optional: Log warnings but don't logout
     const loginTime = new Date(session.login_time);
     const now = new Date();
     const hoursSinceLogin = (now - loginTime) / (1000 * 60 * 60);
 
     if (hoursSinceLogin > 24) {
-      console.warn('Session expired (24 hours), logging out');
-      logoutUser();
-      return null;
+      console.warn('Session is older than 24 hours, but keeping active');
     }
 
-    // Check token expiry date if available
     if (session.token_expiry_date) {
       const expiryDate = new Date(session.token_expiry_date);
       if (now > expiryDate) {
-        console.warn('Token expired, logging out');
-        logoutUser();
-        return null;
+        console.warn('Token expiry date passed, but keeping session active');
       }
     }
 
     return session;
   } catch (err) {
     console.error('Error getting session:', err);
-    logoutUser();
+    // Don't logout on error - could be JSON parse issue
+    // Just return null and let user try again
     return null;
   }
 };
@@ -344,14 +344,14 @@ export const validateSessionWithBackend = async () => {
 
     if (error) {
       console.error('Session validation error:', error);
-      logoutUser();
-      return { valid: false, reason: 'Session expired' };
+      // DON'T logout on error - could be network issue
+      // Let the caller decide what to do
+      throw error; // Throw so App.jsx can catch and handle
     }
 
     if (!data || !data.valid) {
-      // Session is invalid, clear local storage
+      // Session is invalid on backend - this is a real invalidation
       console.warn('Session validation failed:', data?.error || 'Session invalid');
-      logoutUser();
       
       // Check if user was deleted by admin
       if (data?.user_deleted) {
@@ -374,8 +374,9 @@ export const validateSessionWithBackend = async () => {
     return { valid: true };
   } catch (err) {
     console.error('Session validation exception:', err);
-    logoutUser();
-    return { valid: false, reason: 'Session expired' };
+    // DON'T logout on exception - could be network issue
+    // Throw the error so App.jsx can catch and handle
+    throw err;
   }
 };
 

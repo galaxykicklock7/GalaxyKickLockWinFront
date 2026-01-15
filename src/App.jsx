@@ -255,99 +255,21 @@ function UserApp() {
     };
   }, [config]); // Add config as dependency
 
-  // Periodic session validation + visibility check
+  // Session persistence - NO AUTOMATIC VALIDATION
+  // Session will persist until:
+  // 1. User manually logs out
+  // 2. User clears browser data
+  // 3. Admin explicitly revokes access (requires manual check)
   useEffect(() => {
     if (!authenticated) return;
 
-    const validateSession = async () => {
-      // Prevent multiple validations if already logged out
-      if (hasLoggedOutRef.current) return;
-
-      const session = getSession();
-      if (!session) {
-        // Session expired or invalid locally - perform cleanup
-        hasLoggedOutRef.current = true;
-        await performAutoCleanup('Your session has expired');
-        return;
-      }
-
-      // Validate with backend to check if session was invalidated
-      // BUT: Don't logout on network errors - only on explicit invalidation
-      try {
-        const { validateSessionWithBackend } = await import('./utils/auth');
-        const result = await validateSessionWithBackend();
-        
-        if (!result.valid) {
-          // Session invalidated on backend (admin revoked token or logged in elsewhere)
-          hasLoggedOutRef.current = true;
-          await performAutoCleanup(result.reason || 'Your access has been revoked');
-        }
-      } catch (error) {
-        // Network error or backend unreachable - DON'T logout
-        // Just log the error and keep session active
-        console.warn('Session validation failed (network issue), keeping session active:', error);
-      }
-    };
-
-    // Auto-cleanup function when session is invalidated
-    const performAutoCleanup = async (reason) => {
-      console.log('🔒 Session invalidated, performing auto-cleanup...');
-      
-      try {
-        // 1. Disconnect if connected
-        if (connected) {
-          try {
-            await disconnect();
-          } catch (err) {
-            console.warn('Disconnect failed during auto-cleanup:', err);
-          }
-        }
-
-        // 2. DO NOT cancel workflow - let it keep running
-        // User can manually deactivate if needed
-        // Just clear the local state
-        storageManager.removeItem('deploymentStatus');
-        storageManager.removeItem('workflowRunId');
-        storageManager.removeItem('backendSubdomain');
-        storageManager.removeItem('localTestMode');
-
-        const { clearBackendUrl } = await import('./utils/backendUrl');
-        clearBackendUrl();
-
-        stopMonitoring();
-
-        window.dispatchEvent(new CustomEvent('deploymentStatusChanged', {
-          detail: { status: 'idle' }
-        }));
-      } catch (err) {
-        console.error('Auto-cleanup failed:', err);
-      }
-      
-      // 3. Logout
-      setAuthenticated(false);
-      setCurrentUser(null);
-      showToast(reason, 'error');
-    };
-
-    // Check every 60 seconds (less aggressive)
-    const validateInterval = setInterval(validateSession, 60 * 1000);
-
-    // Also check when tab becomes visible (user switches back to this tab)
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        // Don't validate immediately on visibility change
-        // This prevents logout when switching tabs on mobile
-        setTimeout(validateSession, 2000);
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
+    // No automatic validation or expiry checks
+    // Session persists indefinitely for better mobile experience
+    
     return () => {
-      clearInterval(validateInterval);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      // Cleanup on unmount
     };
-  }, [authenticated, disconnect]);
+  }, [authenticated]);
 
   const handleLoginSuccess = (userData) => {
     setToast(null); // Clear any existing toasts
