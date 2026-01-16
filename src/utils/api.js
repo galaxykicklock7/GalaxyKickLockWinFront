@@ -8,7 +8,8 @@ const createApiInstance = () => {
   // Always use the backend URL directly (no proxy)
   const baseURL = BACKEND_URL;
 
-  console.log('🔧 Creating API instance with baseURL:', baseURL);
+  // Removed excessive logging - only log in development if needed
+  // console.log('🔧 Creating API instance with baseURL:', baseURL);
 
   // Create axios instance
   const axiosInstance = axios.create({

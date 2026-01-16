@@ -163,6 +163,14 @@ export const loginUser = async (username, password) => {
     if (!data || !data.success) {
       const errorMsg = data?.error || 'Login failed';
 
+      // Pass through admin-related messages
+      if (errorMsg.includes('removed by admin') || errorMsg.includes('contact admin')) {
+        return { success: false, error: errorMsg };
+      }
+      if (errorMsg.includes('deactivated by admin')) {
+        return { success: false, error: errorMsg };
+      }
+
       // Provide user-friendly messages without revealing too much
       if (errorMsg.includes('not found') || errorMsg.includes('invalid')) {
         return { success: false, error: 'Invalid username or password' };

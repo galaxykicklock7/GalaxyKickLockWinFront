@@ -255,21 +255,64 @@ function UserApp() {
     };
   }, [config]); // Add config as dependency
 
-  // Session persistence - NO AUTOMATIC VALIDATION
-  // Session will persist until:
-  // 1. User manually logs out
-  // 2. User clears browser data
-  // 3. Admin explicitly revokes access (requires manual check)
+  // Single-session enforcement - check if logged in elsewhere
   useEffect(() => {
     if (!authenticated) return;
 
-    // No automatic validation or expiry checks
-    // Session persists indefinitely for better mobile experience
-    
-    return () => {
-      // Cleanup on unmount
+    const checkForNewSession = async () => {
+      // Prevent multiple checks if already logged out
+      if (hasLoggedOutRef.current) return;
+
+      const localSession = getSession();
+      if (!localSession || !localSession.session_token) return;
+
+      try {
+        // Check with backend if this session is still the active one
+        const { validateSessionWithBackend } = await import('./utils/auth');
+        const result = await validateSessionWithBackend();
+        
+        if (!result.valid) {
+          // Session invalidated - user logged in elsewhere or admin revoked
+          console.log('🔒 Session invalidated:', result.reason);
+          hasLoggedOutRef.current = true;
+          
+          // Clear local state
+          storageManager.removeItem('deploymentStatus');
+          storageManager.removeItem('workflowRunId');
+          storageManager.removeItem('backendSubdomain');
+          storageManager.removeItem('localTestMode');
+
+          const { clearBackendUrl } = await import('./utils/backendUrl');
+          clearBackendUrl();
+
+          stopMonitoring();
+
+          window.dispatchEvent(new CustomEvent('deploymentStatusChanged', {
+            detail: { status: 'idle' }
+          }));
+          
+          // Logout
+          await logoutUser();
+          setAuthenticated(false);
+          setCurrentUser(null);
+          showToast(result.reason || 'You have been logged in on another device', 'info');
+        }
+      } catch (error) {
+        // Network error - don't logout, just log warning
+        console.warn('Session check failed (network issue), keeping session active:', error);
+      }
     };
-  }, [authenticated]);
+
+    // Check immediately on mount
+    checkForNewSession();
+
+    // Then check every 10 seconds for new logins on other devices
+    const checkInterval = setInterval(checkForNewSession, 10 * 1000);
+
+    return () => {
+      clearInterval(checkInterval);
+    };
+  }, [authenticated, stopMonitoring]);
 
   const handleLoginSuccess = (userData) => {
     setToast(null); // Clear any existing toasts
@@ -296,6 +339,17 @@ function UserApp() {
     setCurrentUser(userData);
     setAuthenticated(true);
     showToast(`Welcome back, ${userData.username}!`, 'success');
+    
+    // Immediately trigger session check to invalidate old sessions
+    // This ensures old devices get logged out quickly
+    setTimeout(async () => {
+      try {
+        const { validateSessionWithBackend } = await import('./utils/auth');
+        await validateSessionWithBackend();
+      } catch (error) {
+        console.warn('Initial session validation failed:', error);
+      }
+    }, 2000);
   };
 
   const handleLogout = async () => {
